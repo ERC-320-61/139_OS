@@ -138,7 +138,7 @@ void Producer(int bufSize, int itemCnt, int randSeed)
     for (int i = 0; i < itemCnt; i++) {
         // Wait if buffer is full
         while (((in + 1) % bufSize) == GetOut()) {
-            // Buffer is full, wait for consumer to consume an item
+            // Buffer is full, wait for consumer to consume an itemclear 
             usleep(100000); // Sleep for 100ms
         }
 
@@ -151,10 +151,13 @@ void Producer(int bufSize, int itemCnt, int randSeed)
         // Print production message
         printf("Producing Item %d with value %d at Index %d\n", i, val, in);
 
-        // Print the number of items currently in the buffer
+        /* FOR TROUBLE SHOOTING 
+
+        // Print the number of items currently in the buffer 
         out = GetOut(); // Fetch the latest 'out' value
         int itemsInBuffer = in >= out ? in - out : bufSize - (out - in);
         printf("Items in buffer: %d\n", itemsInBuffer);
+        */
 
         // Update the index for the next item
         in = (in + 1) % bufSize;
