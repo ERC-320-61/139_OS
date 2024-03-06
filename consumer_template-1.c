@@ -13,8 +13,6 @@ OSs Tested on: such as Linux, Mac, etc.
 #include <sys/shm.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <sys/types.h> // for ftruncate
-#include <sys/stat.h>  // for ftruncate
 #include <string.h>
 #include <unistd.h>   // for close, ftruncate, usleep
 
@@ -84,26 +82,28 @@ int main()
 
         // Code to consume all the items produced by the producer
         int consumedItems = 0;
-        while(consumedItems < itemCnt) {
-                // Wait if there are no items to consume
-                while(in == out) {
-                // Buffer is empty, wait for the producer to produce an item
-                usleep(100000); // Sleep for 100ms
+        while (consumedItems < itemCnt) {
+
+                // Busy-wait if buffer is empty
+                while (GetIn() == out) {
+                        // Introduce a short delay to reduce CPU usage during busy-wait
+                        usleep(1000); // Sleep for 1ms
                 }
 
                 // Read the item from the buffer at index 'out'
                 int val = ReadAtBufIndex(out);
-                
+
                 // Report the consumption of an item
                 printf("Consuming Item %d with value %d at Index %d\n", consumedItems, val, out);
 
-                // Increment the index 'out' and number of consumed items
+                // Increment the 'out' index and wrap it if necessary
                 out = (out + 1) % bufSize;
                 consumedItems++;
 
-                // Update the shared variable 'out' with the new value
+                // Update the shared 'out' index for the producer to see
                 SetOut(out);
         }
+
 
      // remove the shared memory segment 
      if (shm_unlink(name) == -1) {
