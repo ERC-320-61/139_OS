@@ -13,6 +13,7 @@ OSs Tested on: such as Linux, Mac, etc.
 #include <fcntl.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -57,7 +58,7 @@ int main(int argc, char* argv[])
 		exit(1);
         }
 
-        // Create and map shared memory block to a global pointer for read and write access
+        
 	bufSize = atoi(argv[1]);
 	itemCnt = atoi(argv[2]);
 	randSeed = atoi(argv[3]);
