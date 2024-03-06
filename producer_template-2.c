@@ -136,20 +136,25 @@ void Producer(int bufSize, int itemCnt, int randSeed)
 
     // Produce itemCnt items
     for (int i = 0; i < itemCnt; i++) {
-        // Generate a random item
-        int val = GetRand(0, 3000);
-
         // Wait if buffer is full
         while (((in + 1) % bufSize) == GetOut()) {
             // Buffer is full, wait for consumer to consume an item
             usleep(100000); // Sleep for 100ms
         }
 
+        // Generate a random item
+        int val = GetRand(0, 3000);
+
         // Write the item to the buffer
         WriteAtBufIndex(in, val);
 
         // Print production message
         printf("Producing Item %d with value %d at Index %d\n", i, val, in);
+
+        // Print the number of items currently in the buffer
+        out = GetOut(); // Fetch the latest 'out' value
+        int itemsInBuffer = in >= out ? in - out : bufSize - (out - in);
+        printf("Items in buffer: %d\n", itemsInBuffer);
 
         // Update the index for the next item
         in = (in + 1) % bufSize;
@@ -160,6 +165,7 @@ void Producer(int bufSize, int itemCnt, int randSeed)
 
     printf("Producer Completed\n");
 }
+
 
 // Set the value of shared variable "bufSize"
 void SetBufSize(int val)
