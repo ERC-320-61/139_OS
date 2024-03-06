@@ -13,7 +13,12 @@ OSs Tested on: such as Linux, Mac, etc.
 #include <sys/shm.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/types.h> // for ftruncate
+#include <sys/stat.h>  // for ftruncate
 #include <string.h>
+#include <unistd.h>   // for close, ftruncate, usleep
+
+
 
 // Size of shared memory block
 // Pass this to ftruncate and mmap
