@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
 	}
 	else if (pid == 0) { // child process 
 		printf("Launching Consumer \n");
-		execlp("./consumer","consumer",NULL);
+		execlp("./consumer", "consumer", argv[1], argv[2], argv[3], (char *)NULL);
 	}
 	else { // parent process, parent will wait for the child to complete 
 		printf("Starting Producer\n");
