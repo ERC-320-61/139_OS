@@ -1,9 +1,9 @@
 /*
 CSC139 
-Spring 2023
+Spring 2024
 First Assignment
-Last Name, First Name
-Section #
+Delgado, Eric
+Section #03
 OSs Tested on: such as Linux, Mac, etc.
 */
 
@@ -26,7 +26,7 @@ OSs Tested on: such as Linux, Mac, etc.
 // Don't change this pointer in any function
 void* gShmPtr;
 
-// You won't necessarily need all the functions below
+// Function signatures
 void Producer(int, int, int);
 void InitShm(int, int);
 void SetBufSize(int);
@@ -43,9 +43,10 @@ void WriteAtBufIndex(int, int);
 int ReadAtBufIndex(int);
 int GetRand(int, int);
 
-
+// Start main program
 int main(int argc, char* argv[])
 {
+        // Define shared memory name and other necessary variables
         pid_t pid;
         int bufSize; // Bounded buffer size
         int itemCnt; // Number of items to be produced
@@ -55,6 +56,8 @@ int main(int argc, char* argv[])
 		printf("Invalid number of command-line arguments\n");
 		exit(1);
         }
+
+        // Create and map shared memory block to a global pointer for read and write access
 	bufSize = atoi(argv[1]);
 	itemCnt = atoi(argv[2]);
 	randSeed = atoi(argv[3]);
@@ -67,16 +70,15 @@ int main(int argc, char* argv[])
 	/* fork a child process */ 
 	pid = fork();
 
-	if (pid < 0) { /* error occurred */
+	if (pid < 0) { // error occurred 
 		fprintf(stderr, "Fork Failed\n");
 		exit(1);
 	}
-	else if (pid == 0) { /* child process */
+	else if (pid == 0) { // child process 
 		printf("Launching Consumer \n");
 		execlp("./consumer","consumer",NULL);
 	}
-	else { /* parent process */
-		/* parent will wait for the child to complete */
+	else { // parent process, parent will wait for the child to complete 
 		printf("Starting Producer\n");
 		
                // The function that actually implements the production
@@ -89,24 +91,39 @@ int main(int argc, char* argv[])
     
         return 0;
 }
-
+// End main program
 
 void InitShm(int bufSize, int itemCnt)
 {
     int in = 0;
     int out = 0;
-    const char *name = "OS_HW1_yourName"; // Name of shared memory object to be passed to shm_open
+    const char *name = "OS_HW1_EricDelgado"; //Name of shared memory object to be passed to shm_open
 
-     // Write code here to create a shared memory block and map it to gShmPtr  
-     // Use the above name.
-     // **Extremely Important: map the shared memory block for both reading and writing 
-     // Use PROT_READ | PROT_WRITE
-	
-    // Write code here to set the values of the four integers in the header
-    // Just call the functions provided below, like this
-    SetBufSize(bufSize); 	
-       
-	   
+     // Shared memory file descriptor
+    int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+    if (fd < 0) {
+        perror("shm_open");
+        exit(1);
+    }
+
+    // Configure the size of the shared memory object
+    if (ftruncate(fd, SHM_SIZE) != 0) {
+        perror("ftruncate");
+        exit(1);
+    }
+
+    // Map the shared memory object
+    gShmPtr = mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (gShmPtr == MAP_FAILED) {
+        perror("mmap");
+        exit(1);
+    }
+
+    // Initialize header values
+    SetBufSize(bufSize);
+    SetItemCnt(itemCnt);
+    SetIn(0); // Initial index for production is 0
+    SetOut(0); // Initial index for consumption is 0
 }
 
 void Producer(int bufSize, int itemCnt, int randSeed)
@@ -116,20 +133,31 @@ void Producer(int bufSize, int itemCnt, int randSeed)
         
     srand(randSeed);
 
-    // Write code here to produce itemCnt integer values in the range [0-3000]
-    // Use the functions provided below to get/set the values of shared variables "in" and "out"
-    // Use the provided function WriteAtBufIndex() to write into the bounded buffer 	
-    // Use the provided function GetRand() to generate a random number in the specified range
-    // **Extremely Important: Remember to set the value of any shared variable you change locally
-    // Use the following print statement to report the production of an item:
-    // printf("Producing Item %d with value %d at Index %d\n", i, val, in);
-    // where i is the item number, val is the item value, in is its index in the bounded buffer
-    	
-	
-	
-	
-    
-     printf("Producer Completed\n");
+    // Produce itemCnt items
+    for (int i = 0; i < itemCnt; i++) {
+        // Generate a random item
+        int val = GetRand(0, 3000);
+
+        // Wait if buffer is full
+        while (((in + 1) % bufSize) == GetOut()) {
+            // Buffer is full, wait for consumer to consume an item
+            usleep(100000); // Sleep for 100ms
+        }
+
+        // Write the item to the buffer
+        WriteAtBufIndex(in, val);
+
+        // Print production message
+        printf("Producing Item %d with value %d at Index %d\n", i, val, in);
+
+        // Update the index for the next item
+        in = (in + 1) % bufSize;
+
+        // Update the shared variable 'in'
+        SetIn(in);
+    }
+
+    printf("Producer Completed\n");
 }
 
 // Set the value of shared variable "bufSize"
@@ -166,10 +194,9 @@ int GetHeaderVal(int i)
 }
 
 // Set the ith value in the header
-void SetHeaderVal(int i, int val)
-{
-       // Write the implementation
-
+void SetHeaderVal(int i, int val) {
+    int *ptr = (int*) gShmPtr + i;
+    *ptr = val;
 }
 
 // Get the value of shared variable "bufSize"
@@ -206,10 +233,12 @@ void WriteAtBufIndex(int indx, int val)
 }
 
 // Read the val at the given index in the bounded buffer
-int ReadAtBufIndex(int indx)
-{
-        // Write the implementation
- 
+int ReadAtBufIndex(int indx) {
+    int val;
+    // Skip the four-integer header and go to the given index 
+    int* ptr = (int*) gShmPtr + 4 + indx;
+    val = *ptr;
+    return val;
 }
 
 // Get a random number in the range [x, y]
