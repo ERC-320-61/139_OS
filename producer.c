@@ -152,9 +152,9 @@ void Producer(int bufSize, int itemCnt, int randSeed)
         printf("Producing Item %d with value %d at Index %d\n", i, val, in);
 
         /* FOR TROUBLE SHOOTING 
-
         // Print the number of items currently in the buffer 
-        out = GetOut(); // Fetch the latest 'out' value
+        
+        clout = GetOut(); // Fetch the latest 'out' value
         int itemsInBuffer = in >= out ? in - out : bufSize - (out - in);
         printf("Items in buffer: %d\n", itemsInBuffer);
         */
