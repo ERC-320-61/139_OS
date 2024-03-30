@@ -168,7 +168,7 @@ void Producer(int bufSize, int itemCnt, int randSeed)
                 // Wait if buffer is full
                 while (((in + 1) % bufSize) == GetOut()) {
                         // Buffer is full, wait for consumer to consume an itemclear 
-                        usleep(3000); // Sleep for 3ms
+                        usleep(100000); // Sleep for 100ms
                 }
 
                 // Generate a random value

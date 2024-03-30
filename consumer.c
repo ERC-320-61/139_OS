@@ -96,11 +96,21 @@ int main()
         // Code to consume all the items produced by the producer
         int consumedItems = 0;
         while (consumedItems < itemCnt) {
-
                 // Busy-wait if buffer is empty
                 while (GetIn() == out) {
-                        // Introduce a short delay and then check again
-                        usleep(3000); // Sleep for 3ms
+                        usleep(1000); // Sleep for 1ms to reduce CPU usage
+                        
+                        // Re-check itemCnt in case of any updates indicating all items are produced.
+                        itemCnt = GetItemCnt();
+                        if (consumedItems >= itemCnt) {
+                                // All items have been consumed; exit the loop.
+                                break;
+                        }
+                }
+
+                // Make sure we break out of the outer loop if all items are already consumed.
+                if (consumedItems >= itemCnt) {
+                        break;
                 }
 
                 // Read the item from the buffer at index 'out'
@@ -118,7 +128,6 @@ int main()
                 // Update the shared 'out' index for the producer to see
                 SetOut(out);
         }
-
 
      // remove the shared memory segment 
      if (shm_unlink(name) == -1) {
