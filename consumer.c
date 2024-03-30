@@ -4,7 +4,7 @@ Spring 2024
 First Assignment
 Delgado, Eric
 Section #03
-OSs Tested on: Linux
+OSs Tested on: Linux Only
 */
 
 #include <stdio.h>
@@ -15,8 +15,6 @@ OSs Tested on: Linux
 #include <sys/mman.h>
 #include <string.h>
 #include <unistd.h>   // for close, ftruncate, usleep
-
-
 
 // Size of shared memory block
 // Pass this to ftruncate and mmap
@@ -47,31 +45,45 @@ int main()
     int in; // Index of next item to produce
     int out; // Index of next item to consume
 
-        // Shared memory file descriptor
-        int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+        
+        // Write code here to create a shared memory block and map it to gShmPtr
+        // Use the above name
+        // **Extremely Important: map the shared memory block for both reading and writing 
+        // Use PROT_READ | PROT_WRITE
+        int fd = shm_open(name, O_RDWR | O_CREAT, 0666);
         if (fd == -1) {
-                perror("shm_open");
-                return 1;
+                perror("Failure Point:shm_open; Error creating shared memory...");     // Using perror instead of printf or fprintf since it prints out more info on an error    
+                exit(1);
         }
 
+        // truncate file to set size
+        // ftruncate(fd, SHM_SIZE);
         // Configure the size of the shared memory object
         if (ftruncate(fd, SHM_SIZE) == -1) {
-                perror("ftruncate");
-                close(fd);
-                shm_unlink(name);
-                return 1;
+                perror("Failure Point:ftruncate; Unable to resize shared memory...");    // Using perror instead of printf or fprintf since it prints out more info on an error
+
+                close(fd);              // Cleans up resources with close(fd) and shm_unlink(name) on ftruncate or mmap failure to prevent leaks and ensure system cleanup.
+                shm_unlink(name);       // Deletes a shared memory object name, and, once all processes have unmapped the object, deallocates and destroys the contents of the associated memory region
+
+                exit(1);
         }
 
+        //map to gShmPtr
+        //addr, size, ptro, flags, fd, offset
         // Map the shared memory object for both reading and writing
         gShmPtr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (gShmPtr == MAP_FAILED) {
-                perror("mmap");
-                close(fd);
-                shm_unlink(name);
-                return 1;
+                perror("Failure Point:mmap;  Unable to map shared memory... ");         // Using perror instead of printf or fprintf since it prints out more info on an error
+                
+                close(fd);             // Cleans up resources with close(fd) and shm_unlink(name) on ftruncate or mmap failure to prevent leaks and ensure system cleanup.
+                shm_unlink(name);      // Deletes a shared memory object name, and, once all processes have unmapped the object, deallocates and destroys the contents of the associated memory region
+
+                exit(1);
         }
 
-        // Read header values from the shared memory block
+        // Write code here to read the four integers from the header of the shared memory block 
+        // These are: bufSize, itemCnt, in, out
+        // Just call the functions provided below like this:
         bufSize = GetBufSize(); 
         itemCnt = GetItemCnt(); 
         in = GetIn();           
@@ -80,24 +92,27 @@ int main()
         // Check that the consumer has read the right values
         printf("Consumer reading: bufSize = %d, itemCnt = %d, in = %d, out = %d\n", bufSize, itemCnt, in, out);
 
+        // Write code here to consume all the items produced by the producer
         // Code to consume all the items produced by the producer
         int consumedItems = 0;
         while (consumedItems < itemCnt) {
 
                 // Busy-wait if buffer is empty
                 while (GetIn() == out) {
-                        // Introduce a short delay to reduce CPU usage during busy-wait
-                        usleep(1000); // Sleep for 1ms
+                        // Introduce a short delay and then check again
+                        usleep(3000); // Sleep for 3ms
                 }
 
                 // Read the item from the buffer at index 'out'
-                int val = ReadAtBufIndex(out);
+                int value = ReadAtBufIndex(out);
 
                 // Report the consumption of an item
-                printf("Consuming Item %d with value %d at Index %d\n", consumedItems, val, out);
+                printf("Consuming Item %d with value %d at Index %d\n", consumedItems, value, out);
 
                 // Increment the 'out' index and wrap it if necessary
                 out = (out + 1) % bufSize;
+
+                // Increment counter
                 consumedItems++;
 
                 // Update the shared 'out' index for the producer to see
@@ -137,9 +152,17 @@ int GetHeaderVal(int i)
 
 // Set the ith value in the header
 void SetHeaderVal(int i, int val) {
-    // gShmPtr points to the beginning of the shared memory segment, cast it to an integer pointer and then move to the ith integer position
-    int* ptr = (int*) gShmPtr + i;
-    *ptr = val; // Write the value to the shared memory
+        // Explicitly checks if gShmPtr is NULL before proceeding
+        if(gShmPtr == NULL)
+        {
+                perror("Failure Point: SetHeadrVal; Shared memory segment not present, cannot proceed to set header value..."); // Using perror instead of printf or fprintf since it prints out more info on an error
+        }
+        else
+        {
+                // gShmPtr points to the beginning of the shared memory segment, cast it to an integer pointer and then move to the ith integer position
+                int* ptr = (int*) gShmPtr + i;
+                *ptr = val; // Write the value to the shared memory
+        }
 }
 
 
@@ -178,10 +201,8 @@ void WriteAtBufIndex(int indx, int val)
 
 // Read the val at the given index in the bounded buffer
 int ReadAtBufIndex(int indx) {
-    int val;
-    // gShmPtr points to the beginning of the shared memory segment, skip the header which is 4 integers long, then go to the indx-th integer
-    int* ptr = (int*) gShmPtr + 4 + indx;
-    val = *ptr; // Read the value from the shared memory
-    return val; // Return the read value
+        int value;  // Will hold (int) position
+        int* ptr = (int*) gShmPtr + 4 + indx; // Calculate the address to access the indx-th integer after skipping a 4-integer-long header in the shared memory.
+        return *ptr; // Read & return the value from the shared memory
 }
 

@@ -4,7 +4,7 @@ Spring 2024
 First Assignment
 Delgado, Eric
 Section #03
-OSs Tested on: Linux
+OSs Tested on: Linux Only
 */
 
 #include <stdio.h>
@@ -53,17 +53,28 @@ int main(int argc, char* argv[])
         int itemCnt; // Number of items to be produced
         int randSeed; // Seed for the random number generator 
 
+        // Write code to check the validity of the command-line arguments
+        // Check for the correct number of command-line arguments
         if(argc != 4){
-		printf("Invalid number of command-line arguments\n");
+		fprintf(stderr, "Invalid number of command-line arguments\n");  // Use fprintf to stderr for error messages to ensure they are seen even if stdout is redirected.
 		exit(1);
         }
-
-        
 	bufSize = atoi(argv[1]);
 	itemCnt = atoi(argv[2]);
 	randSeed = atoi(argv[3]);
 	
-	// Write code to check the validity of the command-line arguments
+        // Check the validity of the buffer size
+        if(bufSize < 2 || bufSize > 600){
+                fprintf(stderr, "Error: Buffer size must be between 2 and 600.\n"); // Use fprintf to stderr for error messages to ensure they are seen even if stdout is redirected.
+
+                exit(1);
+        }
+        // Check the validity of the item count
+        if(itemCnt <= 0){
+                fprintf(stderr, "Error: Item count must be greater than 0.\n");    // Use fprintf to stderr for error messages to ensure they are seen even if stdout is redirected.
+
+                exit(1);
+        }  
 
         // Function that creates a shared memory segment and initializes its header
         InitShm(bufSize, itemCnt);        
@@ -96,77 +107,95 @@ int main(int argc, char* argv[])
 
 void InitShm(int bufSize, int itemCnt)
 {
-    int in = 0;
-    int out = 0;
-    const char *name = "OS_HW1_EricDelgado"; //Name of shared memory object to be passed to shm_open
+        int in = 0;
+        int out = 0;
+        const char *name = "OS_HW1_EricDelgado"; //Name of shared memory object to be passed to shm_open
 
-     // Shared memory file descriptor
-    int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
-    if (fd < 0) {
-        perror("shm_open");
-        exit(1);
-    }
+        // Write code here to create a shared memory block and map it to gShmPtr
+        // Use the above name.
+        // **Extremely Important: map the shared memory block for both reading and writing
+        // Use PROT_READ | PROT_WRITE
+        // Check for any erros when creating a shared memory block
+        int fd = shm_open(name, O_RDWR | O_CREAT, 0666);
 
-    // Configure the size of the shared memory object
-    if (ftruncate(fd, SHM_SIZE) != 0) {
-        perror("ftruncate");
-        exit(1);
-    }
+        // truncate file to set size
+        // ftruncate(fd, SHM_SIZE);
+        // Configure the size of the shared memory object
+        if (ftruncate(fd, SHM_SIZE) == -1) {
+                perror("Failure Point:ftruncate; Unable to resize shared memory...");    // Using perror instead of printf or fprintf since it prints out more info on an error
 
-    // Map the shared memory object
-    gShmPtr = mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (gShmPtr == MAP_FAILED) {
-        perror("mmap");
-        exit(1);
-    }
+                close(fd);              // Cleans up resources with close(fd) and shm_unlink(name) on ftruncate or mmap failure to prevent leaks and ensure system cleanup.
+                shm_unlink(name);       // Deletes a shared memory object name, and, once all processes have unmapped the object, deallocates and destroys the contents of the associated memory region
 
-    // Initialize header values
-    SetBufSize(bufSize);
-    SetItemCnt(itemCnt);
-    SetIn(0); // Initial index for production is 0
-    SetOut(0); // Initial index for consumption is 0
+                exit(1);
+        }
+
+        //map to gShmPtr
+        //addr, size, ptro, flags, fd, offset
+        // Map the shared memory object for both reading and writing
+        gShmPtr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (gShmPtr == MAP_FAILED) {
+                perror("Failure Point:mmap;  Unable to map shared memory... ");         // Using perror instead of printf or fprintf since it prints out more info on an error
+                
+                close(fd);             // Cleans up resources with close(fd) and shm_unlink(name) on ftruncate or mmap failure to prevent leaks and ensure system cleanup.
+                shm_unlink(name);      // Deletes a shared memory object name, and, once all processes have unmapped the object, deallocates and destroys the contents of the associated memory region
+
+                exit(1);
+        }
+
+        // Write code here to set the values of the four integers in the header
+        // Just call the functions provided below, like this SetBufSize(bufSize);
+        // Initialize header values
+        SetBufSize(bufSize);
+        SetItemCnt(itemCnt);
+        SetIn(0); // Initial index for production is 0
+        SetOut(0); // Initial index for consumption is 0
 }
 
 void Producer(int bufSize, int itemCnt, int randSeed)
 {
-    int in = 0;
-    int out = 0;
-        
-    srand(randSeed);
+        int in = 0;
+        int out = 0;
 
-    // Produce itemCnt items
-    for (int i = 0; i < itemCnt; i++) {
-        // Wait if buffer is full
-        while (((in + 1) % bufSize) == GetOut()) {
-            // Buffer is full, wait for consumer to consume an itemclear 
-            usleep(100000); // Sleep for 100ms
+        srand(randSeed);
+
+        // Write code here to produce itemCnt integer values in the range [0-3000]
+        // Use the functions provided below to get/set the values of shared variables "in" and "out"
+        // Use the provided function WriteAtBufIndex() to write into the bounded buffer
+
+        // Produce itemCnt items
+        for (int i = 0; i < itemCnt; i++) {
+                // Wait if buffer is full
+                while (((in + 1) % bufSize) == GetOut()) {
+                        // Buffer is full, wait for consumer to consume an itemclear 
+                        usleep(3000); // Sleep for 3ms
+                }
+
+                // Generate a random value
+                int randValue = GetRand(0, 3000);
+
+                // Write the item to the buffer
+                WriteAtBufIndex(in, randValue);
+
+                // Print production message
+                printf("Producing Item %d with value %d at Index %d\n", i, randValue, in);
+
+                /* FOR TROUBLE SHOOTING 
+                // Print the number of items currently in the buffer 
+                
+                clout = GetOut(); // Fetch the latest 'out' value
+                int itemsInBuffer = in >= out ? in - out : bufSize - (out - in);
+                printf("Items in buffer: %d\n", itemsInBuffer);
+                */
+
+                // Update the index for the next item
+                in = (in + 1) % bufSize;
+
+                // Update the shared variable 'in'
+                SetIn(in);
         }
 
-        // Generate a random item
-        int val = GetRand(0, 3000);
-
-        // Write the item to the buffer
-        WriteAtBufIndex(in, val);
-
-        // Print production message
-        printf("Producing Item %d with value %d at Index %d\n", i, val, in);
-
-        /* FOR TROUBLE SHOOTING 
-        // Print the number of items currently in the buffer 
-        
-        clout = GetOut(); // Fetch the latest 'out' value
-        int itemsInBuffer = in >= out ? in - out : bufSize - (out - in);
-        printf("Items in buffer: %d\n", itemsInBuffer);
-        */
-
-        // Update the index for the next item
-        in = (in + 1) % bufSize;
-
-        // Update the shared variable 'in'
-        SetIn(in);
-    }
-
-    printf("Producer Completed\n");
+        printf("Producer Completed\n");
 }
 
 
@@ -205,8 +234,17 @@ int GetHeaderVal(int i)
 
 // Set the ith value in the header
 void SetHeaderVal(int i, int val) {
-    int *ptr = (int*) gShmPtr + i;
-    *ptr = val;
+        // Explicitly checks if gShmPtr is NULL before proceeding
+        if(gShmPtr == NULL)
+        {
+                perror("Failure Point: SetHeadrVal; Shared memory segment not present, cannot proceed to set header value..."); // Using perror instead of printf or fprintf since it prints out more info on an error
+        }
+        else
+        {
+                // gShmPtr points to the beginning of the shared memory segment, cast it to an integer pointer and then move to the ith integer position
+                int* ptr = (int*) gShmPtr + i;
+                *ptr = val; // Write the value to the shared memory
+        }
 }
 
 // Get the value of shared variable "bufSize"
@@ -244,11 +282,9 @@ void WriteAtBufIndex(int indx, int val)
 
 // Read the val at the given index in the bounded buffer
 int ReadAtBufIndex(int indx) {
-    int val;
-    // Skip the four-integer header and go to the given index 
-    int* ptr = (int*) gShmPtr + 4 + indx;
-    val = *ptr;
-    return val;
+        int value;  // Will hold (int) position
+        int* ptr = (int*) gShmPtr + 4 + indx; // Calculate the address to access the indx-th integer after skipping a 4-integer-long header in the shared memory.
+        return *ptr; // Read & return the value from the shared memory
 }
 
 // Get a random number in the range [x, y]
