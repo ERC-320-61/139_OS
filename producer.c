@@ -4,7 +4,7 @@ Spring 2024
 First Assignment
 Delgado, Eric
 Section #03
-OSs Tested on: such as Linux, Mac, etc.
+OSs Tested on: Linux
 */
 
 #include <stdio.h>
