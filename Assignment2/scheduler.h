@@ -1,7 +1,7 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
-#include <stdbool.h> // Necessary for the 'bool' type
+#include <stdbool.h> // Needed for the 'bool' type
 
 #define MAX_PROCESSES 100
 
@@ -41,11 +41,13 @@ void PR_PREMP(Process procs[], int n);
 void pr_noPREMP(Process procs[], int n);
 void round_robin(Process procs[], int n, int quantum);
 
-// Declaration of helper functions
-void print_process_time_results(Process procs[], int n);
-void calculate_waiting_average(Process procs[], int n);
-void print_process_burst_times(Process procs[], int n);
-int initialize_scheduling(const char* filename_base, Process* procs, int* n, char* scheduling_algo, int* quantum);
+// Declaration of helper function
+void print_process_burst_times(Process procs[], int n);                         // Function to print the CPU burst times for all processes  
+void calculate_waiting_average(Process procs[], int n);                         // Function to calculate and print the average waiting time for all processes
+void print_process_time_results(Process procs[], int n);                        // Function to print the results for process times
+void calculate_waiting_time(Process *proc, int current_time);                   // Function to calculate the waiting time for a process based on current simulation time
+void execute_schedule(const char* algo, Process* procs, int n, int quantum);    // Function to execute scheduling based on the specified algorithm
+int initialize_scheduling(const char* filename_base, Process* procs, int* n, char* scheduling_algo, int* quantum);      // Function to initialize scheduling from a specified file base name
 
 
-#endif // SCHEDULER_H
+#endif 

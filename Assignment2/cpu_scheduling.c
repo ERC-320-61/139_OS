@@ -90,6 +90,7 @@ void round_robin(Process procs[], int n, int quantum) {
 }
 
 
+
 /****** SHORTEST JOB FIRST ******/
 void sjf(Process procs[], int n) {
     int current_time = 0;                                                                   // Initialize current time to 0
@@ -103,7 +104,7 @@ void sjf(Process procs[], int n) {
         int shortest_time = INT_MAX;                                                        // Initialize shortest_time with the maximum possible value
         int idx = -1;                                                                       // Initialize idx as -1, to store the index of the process with the shortest burst time
         for (int i = 0; i < n; i++) {                                                       // Iterate over all processes to find the one with the shortest CPU burst time
-            if (!completed[i] && procs[i].arrival_time <= current_time && procs[i].cpu_burst_time < shortest_time) {
+            if (!completed[i] && procs[i].arrival_time <= current_time && procs[i].cpu_burst_time < shortest_time) {    // If process i is not completed, has arrived, and has a burst time shorter than the current shortest
                 shortest_time = procs[i].cpu_burst_time;                                    // Update shortest_time with the smallest burst time found
                 idx = i;                                                                    // Update idx with the index of the process
             }
@@ -138,9 +139,8 @@ void pr_noPREMP(Process procs[], int n) {
         int highest_priority = INT_MAX;                                                     // Start with the highest possible priority (lower number means higher priority)
         int idx = -1;                                                                       // Index of the currently selected process for execution
 
-        // Find the process with the highest priority that has arrived
-        for (int i = 0; i < n; i++) {
-            if (!completed[i] && procs[i].arrival_time <= current_time && procs[i].priority < highest_priority) {
+        for (int i = 0; i < n; i++) {                                                       // For all process find the process with the highest priority that has arrived
+            if (!completed[i] && procs[i].arrival_time <= current_time && procs[i].priority < highest_priority) { // If process i is not completed, has arrived, and has a burst time shorter than the current shortest
                 highest_priority = procs[i].priority;                                       // Update the highest priority found
                 idx = i;                                                                    // Update the index of the process with the highest priority
             }
@@ -178,8 +178,8 @@ void PR_PREMP(Process procs[], int n) {
     while (true) {                                                                          // While all process aren't done, check for new arrivals and possible preemption
         bool found_higher_priority = false;                                                 // Flag to check if a higher priority process is found
         for (int i = 0; i < n; i++) {
-            if (procs[i].arrival_time <= current_time && !procs[i].has_started && !completed[i]) {            // Check if the process is ready to run and has not been completed or started
-                if (current_process_idx == -1 || (procs[i].priority < procs[current_process_idx].priority && procs[i].remaining_time > 0)) {    // Check for no current process or a higher priority process is found
+            if (procs[i].arrival_time <= current_time && !procs[i].has_started && !completed[i]) {            // If the process is ready to run and has not been completed or started
+                if (current_process_idx == -1 || (procs[i].priority < procs[current_process_idx].priority && procs[i].remaining_time > 0)) {    // If no current process or a higher priority process is found
                     if (current_process_idx != -1 && current_time < current_process_end_time) {               // Preempt the current process if a higher priority process is found
                         procs[current_process_idx].remaining_time = current_process_end_time - current_time;  // Save the remaining time for the preempted process
                     }
