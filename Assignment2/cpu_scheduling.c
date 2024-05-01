@@ -165,16 +165,23 @@ void pr_noPREMP(Process procs[], int n) {
         int highest_priority = INT_MAX;                                                     // Start with the highest possible priority (lower number means higher priority)
         int idx = -1;                                                                       // Index of the currently selected process for execution
 
-        for (int i = 0; i < n; i++) {                                                       // For all process find the process with the highest priority that has arrived
-            if (!completed[i] && procs[i].arrival_time <= current_time && procs[i].priority < highest_priority) { // If process i is not completed, has arrived, and has a burst time shorter than the current shortest
-                highest_priority = procs[i].priority;                                       // Update the highest priority found
-                idx = i;                                                                    // Update the index of the process with the highest priority
+        for (int i = 0; i < n; i++) {                                                       // For all processes, find the one with the highest priority that has arrived
+            if (!completed[i] && procs[i].arrival_time <= current_time && procs[i].priority < highest_priority) {
+                highest_priority = procs[i].priority;
+                idx = i;
             }
         }
 
         if (idx == -1) {                                                                    // If no process is ready to run, increment the current time
             current_time++;
         } else {                                                                            // If a process is found
+            // Log the start of the process execution
+            if (events_count < MAX_EVENTS) {
+                events[events_count].time_point = current_time;
+                events[events_count].process_number = procs[idx].process_number;
+                events_count++;
+            }
+
             current_time += procs[idx].cpu_burst_time;                                      // Increase current time by the burst time of the selected process
             procs[idx].finish_time = current_time;                                          // Set finish time for the process
             calculate_waiting_time(&procs[idx], current_time);                              // Calculate waiting time
@@ -189,13 +196,17 @@ void pr_noPREMP(Process procs[], int n) {
 
 
 
+
 /***** PRIORITY SCHEDULING WITH PREEMPTION *****/
 void PR_PREMP(Process procs[], int n) {
     int current_time = 0;
     bool completed[n];
+    int last_process = -1;  // Track the last process that was running
+
     for (int i = 0; i < n; i++) {
         completed[i] = false;
         procs[i].has_started = false;
+        procs[i].remaining_time = procs[i].cpu_burst_time; // Initialize remaining time for each process
     }
 
     // Sort processes by priority initially
@@ -205,14 +216,30 @@ void PR_PREMP(Process procs[], int n) {
         bool all_done = true;
         for (int i = 0; i < n; i++) {
             if (!completed[i] && procs[i].arrival_time <= current_time) {
-                if (!procs[i].has_started || procs[i].remaining_time > 0) {
+                if (last_process == -1 || procs[i].priority < procs[last_process].priority) {
+                    // Log the scheduling event if this is a different process or first-time execution
+                    if (last_process != i) {
+                        if (events_count < MAX_EVENTS) {
+                            events[events_count].time_point = current_time;
+                            events[events_count].process_number = procs[i].process_number;
+                            events_count++;
+                        }
+                    }
+
+                    // Calculate the execution time
+                    int exec_time = (last_process == -1 || procs[i].priority < procs[last_process].priority) ? procs[i].remaining_time : 1;
+                    procs[i].remaining_time -= exec_time;
+                    current_time += exec_time;
                     procs[i].has_started = true;
-                    printf("Process %d runs from %d to %d\n", procs[i].process_number, current_time, current_time + procs[i].remaining_time);
-                    current_time += procs[i].remaining_time;
-                    procs[i].remaining_time = 0;
-                    procs[i].finish_time = current_time;
-                    calculate_waiting_time(&procs[i], current_time);
-                    completed[i] = true;
+                    last_process = i;
+
+                    // If process completes, mark it completed and calculate waiting time
+                    if (procs[i].remaining_time == 0) {
+                        procs[i].finish_time = current_time;
+                        calculate_waiting_time(&procs[i], current_time);
+                        completed[i] = true;
+                        last_process = -1; // Reset last process since it finished
+                    }
                 }
             }
             if (!completed[i]) all_done = false;
