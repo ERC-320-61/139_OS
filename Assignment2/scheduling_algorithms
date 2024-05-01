@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
+#define MAX_PROCESSES 100
+#define QUANTUM 4  // Example quantum size
+
+typedef struct {
+    int process_id;
+    int arrival_time;
+    int burst_time;
+    int remaining_time;
+    bool has_started;
+    bool is_completed;
+    int start_time;
+    int finish_time;
+} Process;
+
+typedef struct {
+    Process *processes[MAX_PROCESSES];
+    int front;
+    int rear;
+    int count;
+} Queue;
+
+void initializeQueue(Queue *q) {
+    q->front = 0;
+    q->rear = -1;
+    q->count = 0;
+}
+
+bool isQueueEmpty(Queue *q) {
+    return q->count == 0;
+}
+
+void enqueue(Queue *q, Process *p) {
+    if (q->count < MAX_PROCESSES) {
+        q->rear = (q->rear + 1) % MAX_PROCESSES;
+        q->processes[q->rear] = p;
+        q->count++;
+    }
+}
+
+Process* dequeue(Queue *q) {
+    Process *p = NULL;
+    if (!isQueueEmpty(q)) {
+        p = q->processes[q->front];
+        q->front = (q->front + 1) % MAX_PROCESSES;
+        q->count--;
+    }
+    return p;
+}
+
+void calculate_waiting_time(Process *p, int current_time) {
+    p->finish_time = current_time;
+    p->is_completed = true;
+}
+
+int main() {
+    Process procs[MAX_PROCESSES] = {
+        {1, 0, 22, 22, false, false, -1, -1},
+        {2, 3, 13, 13, false, false, -1, -1},
+        {3, 6, 4, 4, false, false, -1, -1},
+        {4, 10, 8, 8, false, false, -1, -1}
+    };
+    int n = 4;  // Number of processes
+    Queue queue;
+    initializeQueue(&queue);
+
+    int current_time = 0;
+    int total_active = 0;
+
+    // Initially enqueue processes that are ready at time 0
+    for (int i = 0; i < n; i++) {
+        if (procs[i].arrival_time <= current_time) {
+            enqueue(&queue, &procs[i]);
+            procs[i].has_started = true;
+            total_active++;
+        }
+    }
+
+    while (total_active > 0) {
+        if (!isQueueEmpty(&queue)) {
+            Process *proc_ptr = dequeue(&queue);
+            int exec_time = (proc_ptr->remaining_time < QUANTUM) ? proc_ptr->remaining_time : QUANTUM;
+            proc_ptr->remaining_time -= exec_time;
+            current_time += exec_time;
+
+            if (proc_ptr->remaining_time > 0) {
+                enqueue(&queue, proc_ptr); // Re-enqueue if not finished
+            } else {
+                calculate_waiting_time(proc_ptr, current_time);
+                total_active--; // Reduce the count of active processes
+            }
+        } else {
+            current_time++; // Increment time if no process was ready to execute
+        }
+
+        // Enqueue new processes that become ready
+        for (int i = 0; i < n; i++) {
+            if (procs[i].arrival_time <= current_time && !procs[i].has_started && !procs[i].is_completed) {
+                enqueue(&queue, &procs[i]);
+                procs[i].has_started = true;
+                total_active++;
+            }
+        }
+    }
+
+    // Print results
+    for (int i = 0; i < n; i++) {
+        printf("Process %d finished at time %d\n", procs[i].process_id, procs[i].finish_time);
+    }
+
+    return 0;
+}
