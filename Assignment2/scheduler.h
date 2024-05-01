@@ -24,6 +24,12 @@ typedef struct {
     int last_execution_time;    // The last time when the process was executed on the CPU (for response time in pre-emptive algorithms)
 } Process;
 
+typedef struct {
+    int time_point;
+    int process_number;
+} SchedulingEvent;
+
+
 
 /*
 * The `Queue` structure holds an array of pointers to `Process` structures, 
@@ -44,10 +50,12 @@ void round_robin(Process procs[], int n, int quantum);
 // Declaration of helper function
 void print_process_burst_times(Process procs[], int n);                         // Function to print the CPU burst times for all processes  
 void calculate_waiting_average(Process procs[], int n);                         // Function to calculate and print the average waiting time for all processes
-void print_process_time_results(Process procs[], int n);                        // Function to print the results for process times
+void print_process_time_results(Process procs[], int n, const char* scheduling_algo);                        // Function to print the results for process times
 void calculate_waiting_time(Process *proc, int current_time);                   // Function to calculate the waiting time for a process based on current simulation time
 void execute_schedule(const char* algo, Process* procs, int n, int quantum);    // Function to execute scheduling based on the specified algorithm
 int initialize_scheduling(const char* filename_base, Process* procs, int* n, char* scheduling_algo, int* quantum);      // Function to initialize scheduling from a specified file base name
+int compare_priority(const void *a, const void *b);
+
 
 
 #endif 

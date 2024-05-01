@@ -40,54 +40,73 @@ int main() {
 
 /****** ROUND ROBIN ******/
 void round_robin(Process procs[], int n, int quantum) {
-    int current_time = 0;                                                                   // Initialize current time to 0 for the start of scheduling
-    int exec_time;                                                                          // Declare a variable to hold the execution time of a process during a quantum slice
-    int completed = 0;                                                                      // Counter for the number of processes that have completed execution
-    Queue queue;                                                                            // Declare a queue to manage the processes ready for execution
-    queue.count = 0;                                                                        // Initialize the process count in the queue to 0
+    int current_time = 0;
+    Queue queue;
+    queue.count = 0;
 
+    bool completed[n];
+    memset(completed, false, sizeof(completed));  // Track completion of all processes
 
-    while (completed < n) {
-        for (int i = 0; i < n; i++) {
-            if (procs[i].arrival_time <= current_time && !procs[i].has_started) {           // Check if process has arrived AND not started
-                queue.processes[queue.count++] = &procs[i];                                 // Enqueue the process
-                procs[i].has_started = 1;                                                   // Mark as started
-            }
+    int total_active = 0; // Track the number of active processes
+
+    // Initialize queue with processes that are ready at time 0
+    for (int i = 0; i < n; i++) {
+        if (procs[i].arrival_time <= current_time) {
+            queue.processes[queue.count++] = &procs[i];
+            procs[i].has_started = true;
+            total_active++;
         }
-
-        if (queue.count == 0) {                                                             // Check If Queue Is Empty
-            current_time++;                                                                 // Increment the current time
-            continue;                                                                       // Skip to the next iteration of the loop
-        }
-
-        Process *proc_ptr = queue.processes[0];                                             // Create pointer for curent process & get the first process in the queue
-        for (int i = 0; i < queue.count - 1; i++) {                                         // Loop to shift all processes in the queue up by one position
-            queue.processes[i] = queue.processes[i + 1];                                    // Move each process one position forward in the queue
-        }
-        queue.count--;                                                                      // Decrease count as the first process is taken out for execution
-
-        if (proc_ptr->remaining_time < quantum) {                                           // If remaining time is less than the quantum
-            exec_time = proc_ptr->remaining_time;                                           // Assign remaining time to exec_time
-        } else {
-            exec_time = quantum;                                                            // Else assign quantum to exec_time if remaining time is more
-        }
-        proc_ptr->remaining_time -= exec_time;                                              // Subtract the execution time from the process's remaining time
-        current_time += exec_time;                                                          // Increment the current time by the execution time
-
-        
-        if (proc_ptr->remaining_time > 0) {                                                 // Check if there is still execution time left for the process
-            queue.processes[queue.count++] = proc_ptr;                                      // Reinsert the process into the queue if it has time left
-        } else {
-            completed++;                                                                    // Increment count of completed processes
-            proc_ptr->finish_time = current_time;                                           // Set finish time for the process
-            calculate_waiting_time(proc_ptr, current_time);                                 // Calculate waiting time
-        }
-
     }
 
-    print_process_time_results(procs, n);                                                   // Call to print results
-    calculate_waiting_average(procs, n);                                                    // Calculate and print the average waiting time
+    while (total_active > 0) {
+        if (queue.count > 0) {
+            Process *proc_ptr = queue.processes[0];
+
+            // Shift queue to handle next process
+            for (int i = 0; i < queue.count - 1; i++) {
+                queue.processes[i] = queue.processes[i + 1];
+            }
+            queue.count--;
+
+            int exec_time = proc_ptr->remaining_time < quantum ? proc_ptr->remaining_time : quantum;
+            proc_ptr->remaining_time -= exec_time;
+
+            // Log the process execution start
+            if (events_count < MAX_EVENTS) {
+                events[events_count].time_point = current_time;
+                events[events_count].process_number = proc_ptr->process_number;
+                events_count++;
+            }
+
+            current_time += exec_time; // Advance time by the slice executed
+
+            if (proc_ptr->remaining_time > 0) {
+                queue.processes[queue.count++] = proc_ptr; // Re-enqueue if not finished
+            } else {
+                proc_ptr->finish_time = current_time;
+                calculate_waiting_time(proc_ptr, current_time);
+                completed[proc_ptr->process_number - 1] = true;
+                total_active--; // Reduce the count of active processes
+            }
+        } else {
+            current_time++; // Increment time if no process was ready to execute
+        }
+
+        // Enqueue new processes that become ready
+        for (int i = 0; i < n; i++) {
+            if (procs[i].arrival_time <= current_time && !procs[i].has_started && !completed[i]) {
+                queue.processes[queue.count++] = &procs[i];
+                procs[i].has_started = true;
+                total_active++;
+            }
+        }
+    }
+
+    print_process_time_results(procs, n, "RR");
+    calculate_waiting_average(procs, n);
 }
+
+
 
 
 
@@ -120,7 +139,7 @@ void sjf(Process procs[], int n) {
         }
     }
 
-    print_process_time_results(procs, n);                                                   // Call to print the process time results
+    print_process_time_results(procs, n, "SJF");                             // Call to print the process time results
     calculate_waiting_average(procs, n);                                                    // Calculate and print the average waiting time for all processes
 }
 
@@ -157,64 +176,54 @@ void pr_noPREMP(Process procs[], int n) {
         }
     }
 
-    print_process_time_results(procs, n);                                                   // Print results for each process
+    print_process_time_results(procs, n, "PR_noPREMP");                                     // Print results for each process
     calculate_waiting_average(procs, n);                                                    // Calculate and print the average waiting time of all processes
 }
 
 
 
-/****** PRIORITY SCHEDULING WITH PREEMPTION ******/
+/***** PRIORITY SCHEDULING WITH PREEMPTION *****/
 void PR_PREMP(Process procs[], int n) {
-    int current_time = 0;                                                                   // Initialize current simulation time
-    int current_process_idx = -1;                                                           // Index for tracking the currently executing process
-    int current_process_end_time = INT_MAX;                                                 // End time for the currently executing process
-    bool completed[n];                                                                      // Initialize an array to keep track of completion status of processes
-
+    int current_time = 0;
+    bool completed[n];
     for (int i = 0; i < n; i++) {
-        completed[i] = false;                                                               // Initialize all processes as not completed
-        procs[i].has_started = false;                                                       // Mark all processes as not started
+        completed[i] = false;
+        procs[i].has_started = false;
     }
 
-    while (true) {                                                                          // While all process aren't done, check for new arrivals and possible preemption
-        bool found_higher_priority = false;                                                 // Flag to check if a higher priority process is found
-        for (int i = 0; i < n; i++) {
-            if (procs[i].arrival_time <= current_time && !procs[i].has_started && !completed[i]) {            // If the process is ready to run and has not been completed or started
-                if (current_process_idx == -1 || (procs[i].priority < procs[current_process_idx].priority && procs[i].remaining_time > 0)) {    // If no current process or a higher priority process is found
-                    if (current_process_idx != -1 && current_time < current_process_end_time) {               // Preempt the current process if a higher priority process is found
-                        procs[current_process_idx].remaining_time = current_process_end_time - current_time;  // Save the remaining time for the preempted process
-                    }
-                    current_process_idx = i;                                                // Update the current process index
-                    current_process_end_time = current_time + procs[i].cpu_burst_time;      // Set the end time for the current process
-                    procs[i].has_started = true;                                            // Mark the process as started
-                    found_higher_priority = true;                                           // Set the flag for higher priority found
-                }
-            }
-        }
+    // Sort processes by priority initially
+    qsort(procs, n, sizeof(Process), compare_priority);
 
-        if (current_process_idx != -1 && !found_higher_priority) {                          // If no higher priority process was found, execute the current process 
-            if (current_time >= current_process_end_time) {                                 // Check if the current time has reached the process end time
-                procs[current_process_idx].finish_time = current_time;                      // Set the finish time for the process
-                calculate_waiting_time(&procs[current_process_idx], current_time);          // Calculate waiting time
-                completed[current_process_idx] = true;                                      // Mark the process as completed
-                current_process_idx = -1;                                                   // Reset the current process index
-            }
-        }
-
-        // Check if all processes are completed
+    while (true) {
         bool all_done = true;
         for (int i = 0; i < n; i++) {
-            if (!completed[i]) {
-                all_done = false;                                                           // If any process is not completed, continue the loop
-                break;
+            if (!completed[i] && procs[i].arrival_time <= current_time) {
+                if (!procs[i].has_started || procs[i].remaining_time > 0) {
+                    procs[i].has_started = true;
+                    printf("Process %d runs from %d to %d\n", procs[i].process_number, current_time, current_time + procs[i].remaining_time);
+                    current_time += procs[i].remaining_time;
+                    procs[i].remaining_time = 0;
+                    procs[i].finish_time = current_time;
+                    calculate_waiting_time(&procs[i], current_time);
+                    completed[i] = true;
+                }
+            }
+            if (!completed[i]) all_done = false;
+        }
+
+        if (all_done) break;
+
+        // Aging to prevent starvation: Increment priority of waiting processes
+        for (int i = 0; i < n; i++) {
+            if (!completed[i] && procs[i].arrival_time <= current_time) {
+                procs[i].priority--;
             }
         }
-        if (all_done) {                                                                     // if all procces are done
-            break;                                                                          // Exit the loop 
-        }
 
-        current_time++;                                                                     // Increment the simulation time
+        // Re-sort processes based on updated priorities
+        qsort(procs, n, sizeof(Process), compare_priority);
     }
 
-    print_process_time_results(procs, n);                                                   // Call to print results
-    calculate_waiting_average(procs, n);                                                    // Calculate and print the average waiting time
+    print_process_time_results(procs, n, "PR_PREMP");
+    calculate_waiting_average(procs, n);
 }
