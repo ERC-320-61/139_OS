@@ -38,7 +38,7 @@ int main() {
 
  
 
-/****** ROUND ROBIN ******/
+/****** ROUND ROBIN STILL IN THE WORKS******/
 void round_robin(Process procs[], int n, int quantum) {
     int current_time = 0;
     Queue queue;
@@ -118,6 +118,7 @@ void sjf(Process procs[], int n) {
         completed[i] = false;                                                               // Initialize all process completion statuses to false
     }
     int processes_completed = 0;                                                            // Counter for the number of processes that have completed
+    events_count = 0;                                                                       // Reset events count before scheduling starts
 
     while (processes_completed < n) {                                                       // Continue looping until all processes are completed
         int shortest_time = INT_MAX;                                                        // Initialize shortest_time with the maximum possible value
@@ -131,6 +132,11 @@ void sjf(Process procs[], int n) {
         if (idx == -1) {                                                                    // If no process is ready to execute
             current_time++;                                                                 // Increment current time by 1 unit
         } else {                                                                            // If a process is ready to execute
+            if (events_count < MAX_EVENTS) {                                                // Ensure event list does not overflow
+                events[events_count].time_point = current_time;                             // Log the start time of the process
+                events[events_count].process_number = procs[idx].process_number;
+                events_count++;
+            }
             current_time += procs[idx].cpu_burst_time;                                      // Update current_time by adding the burst time of the selected process
             procs[idx].finish_time = current_time;                                          // Set the finish time for the process
             calculate_waiting_time(&procs[idx], current_time);                              // Calculate waiting time
@@ -139,9 +145,10 @@ void sjf(Process procs[], int n) {
         }
     }
 
-    print_process_time_results(procs, n, "SJF");                             // Call to print the process time results
+    print_process_time_results(procs, n, "SJF");                                            // Call to print the process time results
     calculate_waiting_average(procs, n);                                                    // Calculate and print the average waiting time for all processes
 }
+
 
 
 
