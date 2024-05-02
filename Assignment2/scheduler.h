@@ -1,6 +1,9 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h> // For INT_MAX
 #include <stdbool.h> // Needed for the 'bool' type
 
 #define MAX_PROCESSES 100
@@ -24,6 +27,14 @@ typedef struct {
     int last_execution_time;    // The last time when the process was executed on the CPU (for response time in pre-emptive algorithms)
 } Process;
 
+<<<<<<< Updated upstream
+=======
+typedef struct {
+    int time_point;
+    int process_number;
+} SchedulingEvent;
+
+>>>>>>> Stashed changes
 
 /*
 * The `Queue` structure holds an array of pointers to `Process` structures, 
@@ -34,6 +45,11 @@ typedef struct {
     int count;                          // Counts the number of 'Process' pointers currently in the queue.
 } Queue;
 
+typedef struct {
+    Process **queue;
+    int size;
+    int capacity;
+} PriorityQueue;
 
 // Declaration of algorithm Functions
 void sjf(Process procs[], int n);
@@ -49,5 +65,12 @@ void calculate_waiting_time(Process *proc, int current_time);                   
 void execute_schedule(const char* algo, Process* procs, int n, int quantum);    // Function to execute scheduling based on the specified algorithm
 int initialize_scheduling(const char* filename_base, Process* procs, int* n, char* scheduling_algo, int* quantum);      // Function to initialize scheduling from a specified file base name
 
+void initQueue(PriorityQueue *pq, int capacity);
+
+void enqueue(PriorityQueue *pq, Process *proc);
+
+bool isEmpty(PriorityQueue *pq);
+
+Process* dequeue(PriorityQueue *pq);
 
 #endif 

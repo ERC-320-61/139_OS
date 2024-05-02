@@ -3,6 +3,50 @@
 #include <string.h>
 #include "scheduler.h"
 
+<<<<<<< Updated upstream
+=======
+#define MAX_EVENTS 100
+SchedulingEvent events[MAX_EVENTS];
+int events_count = 0;
+
+
+
+void initQueue(PriorityQueue *pq, int capacity) {
+    pq->queue = (Process**) malloc(sizeof(Process*) * capacity);
+    pq->capacity = capacity;
+    pq->size = 0;
+}
+
+void enqueue(PriorityQueue *pq, Process *proc) {
+    // Enqueue logic based on priority
+}
+
+bool isEmpty(PriorityQueue *pq) {
+    return pq->size == 0;
+}
+
+Process* dequeue(PriorityQueue *pq) {
+    if (pq->size == 0) return NULL;  // If the queue is empty, return NULL
+
+    Process* highestPriorityProcess = pq->queue[0];  // The process with the highest priority is at the front
+    int i;
+
+    // Shift all processes down in the queue to fill the gap
+    for (i = 1; i < pq->size; i++) {
+        pq->queue[i - 1] = pq->queue[i];
+    }
+    
+    pq->size--;  // Decrease the size of the queue
+
+    return highestPriorityProcess;  // Return the process with the highest priority
+}
+
+
+
+
+
+
+>>>>>>> Stashed changes
 /***** CALCULATE AVERAGE WAITING TIME *****/
 void calculate_waiting_average(Process procs[], int n) {
     double total_waiting_time = 0.0;                                 // Initialize total waiting time to zero

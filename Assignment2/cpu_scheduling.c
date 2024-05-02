@@ -165,12 +165,24 @@ void pr_noPREMP(Process procs[], int n) {
 
 /****** PRIORITY SCHEDULING WITH PREEMPTION ******/
 void PR_PREMP(Process procs[], int n) {
+<<<<<<< Updated upstream
     int current_time = 0;                                                                   // Initialize current simulation time
     int current_process_idx = -1;                                                           // Index for tracking the currently executing process
     int current_process_end_time = INT_MAX;                                                 // End time for the currently executing process
     bool completed[n];                                                                      // Initialize an array to keep track of completion status of processes
+=======
+    int current_time = 0;
+    PriorityQueue pq;
+    initQueue(&pq, n);
+    bool completed[n];
+    int process_active = 0;
+>>>>>>> Stashed changes
 
+    Process *current_process = NULL;  // Pointer to the current process being executed
+
+    // Initialize process states
     for (int i = 0; i < n; i++) {
+<<<<<<< Updated upstream
         completed[i] = false;                                                               // Initialize all processes as not completed
         procs[i].has_started = false;                                                       // Mark all processes as not started
     }
@@ -218,3 +230,68 @@ void PR_PREMP(Process procs[], int n) {
     print_process_time_results(procs, n);                                                   // Call to print results
     calculate_waiting_average(procs, n);                                                    // Calculate and print the average waiting time
 }
+=======
+        procs[i].has_started = false;
+        procs[i].remaining_time = procs[i].cpu_burst_time;
+        completed[i] = false;
+    }
+
+    while (process_active < n) {
+        // Enqueue new arrivals or reevaluate priorities
+        for (int i = 0; i < n; i++) {
+            if (procs[i].arrival_time <= current_time && !procs[i].has_started) {
+                enqueue(&pq, &procs[i]);
+                procs[i].has_started = true;
+            }
+        }
+
+        Process *next_process = isEmpty(&pq) ? NULL : dequeue(&pq);
+
+        if (next_process != NULL) {
+            // Log the process start only if it's a different process or if it was preempted
+            if (current_process != next_process) {
+                if (current_process != NULL && current_process->remaining_time > 0) {
+                    // Re-enqueue the current process if it was preempted and still has remaining time
+                    enqueue(&pq, current_process);
+                }
+                printf("%d\t%d\n", current_time, next_process->process_number); // Log the process execution start
+                current_process = next_process;
+            }
+
+            int exec_time = (next_process->remaining_time > 1) ? 1 : next_process->remaining_time;
+            next_process->remaining_time -= exec_time;
+            current_time += exec_time;
+
+            // Check if the process is completed
+            if (next_process->remaining_time <= 0) {
+                next_process->finish_time = current_time;
+                calculate_waiting_time(next_process, current_time);
+                completed[next_process->process_number - 1] = true;
+                process_active++;
+                current_process = NULL; // Reset current process since it finished
+            }
+        } else {
+            // Increment time if no process is ready to be executed
+            current_time++;
+            current_process = NULL;
+        }
+
+        // Aging mechanism to prevent starvation
+        for (int i = 0; i < n; i++) {
+            if (!completed[i] && procs[i].arrival_time <= current_time && current_time % 5 == 0) {
+                procs[i].priority--;
+            }
+        }
+
+        // Re-sort processes based on the updated priorities if using array
+        qsort(procs, n, sizeof(Process), compare_priority);
+    }
+
+    // Calculate and print the average waiting time
+    double total_waiting_time = 0;
+    for (int i = 0; i < n; i++) {
+        total_waiting_time += procs[i].waiting_time;
+    }
+    printf("AVG Waiting Time: %.2f\n", total_waiting_time / n);
+}
+>>>>>>> Stashed changes
