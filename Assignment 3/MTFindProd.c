@@ -81,7 +81,7 @@ int main(int argc, char *argv[]){
 
 
 
-/***************START OF MY CODE 2 ***************/
+	/***************START OF MY CODE 2 ***************/
 	 // Write your code here
   	 // Initialize threads, create threads, and then let the parent wait for all threads using pthread_join
 	 // The thread start function is ThFindProd
@@ -111,22 +111,25 @@ int main(int argc, char *argv[]){
 	}
 
 
-	 // Destroy thread attributes after use
-    for (i = 0; i < MAX_THREADS; i++) {
-        pthread_attr_destroy(&attr[i]);
-    }
+	// Now safely destroy thread attributes
+	for (i = 0; i < gThreadCount; i++) {
+    	pthread_attr_destroy(&attr[i]);
+	}
 
-/*************** END OF MY CODE 2 ***************/
+	/*************** END OF MY CODE 2 ***************/
 
 	prod = ComputeTotalProduct();
 	printf("Threaded multiplication with parent waiting for all children completed in %ld ms. Product = %d\n", GetTime(), prod);
+
+	// Exit the program
+    exit(0);
 
 	// Multi-threaded with busy waiting (parent continually checking on child threads without using semaphores)
 	InitSharedVars();
 	SetTime();
 
 
-/*************** START OF MY CODE 3 ***************/
+	/*************** START OF MY CODE 3 ***************/
 	// Write your code here
     // Don't use any semaphores in this part
 	// Initialize threads, create threads, and then make the parent continually check on all child threads
@@ -165,7 +168,7 @@ int main(int argc, char *argv[]){
 		pthread_join(tid[i], NULL);
 	}
 
-/*************** END OF MY CODE 3 ***************/
+	/*************** END OF MY CODE 3 ***************/
 
 
     prod = ComputeTotalProduct();
@@ -179,7 +182,7 @@ int main(int argc, char *argv[]){
 
 	SetTime();
 
-/*************** START OF MY CODE SECTION 4 ***************/
+	/*************** START OF MY CODE SECTION 4 ***************/
     // Write your code here
 	// Initialize threads, create threads, and then make the parent wait on the "completed" semaphore
 	// The thread start function is ThFindProdWithSemaphore
@@ -220,13 +223,18 @@ int main(int argc, char *argv[]){
 	sem_destroy(&completed);
 	sem_destroy(&mutex);
 
-/*************** END OF MY CODE SECTION 4 ***************/
+	/*************** END OF MY CODE SECTION 4 ***************/
 
 
 
     prod = ComputeTotalProduct();
 	printf("Threaded multiplication with parent waiting on a semaphore completed in %ld ms. Min = %d\n", GetTime(), prod);
+
+	
 }
+
+/******************************END OF MAIN************************************************/
+
 
 /*************** START OF MY CODE SECTION 5 ***************/
 // Write a regular sequential function to multiply all the elements in gData mod NUM_LIMIT
