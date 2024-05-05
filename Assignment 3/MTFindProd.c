@@ -44,13 +44,9 @@ int main(int argc, char *argv[]){
 	pthread_t tid[MAX_THREADS];
 	pthread_attr_t attr[MAX_THREADS];
 	int indices[MAX_THREADS][3];
+    int params[MAX_THREADS][3]; // Parameters for each thread
 	int i, indexForZero, arraySize, prod;
 
-	/***************START OF MY CODE 1 ***************/
-	// Initialize thread attributes and create threads
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	/***************END OF MY CODE 1 ***************/
 
 	// Code for parsing and checking command-line arguments
 	if(argc != 4){
@@ -85,27 +81,32 @@ int main(int argc, char *argv[]){
 	InitSharedVars();
 	SetTime();
 
-	/***************START OF MY CODE 2 ***************/
+/***************START OF MY CODE 2 ***************/
 	 // Write your code here
   	 // Initialize threads, create threads, and then let the parent wait for all threads using pthread_join
 	 // The thread start function is ThFindProd
 	 // Don't forget to properly initialize shared variables
-	
-	int params[MAX_THREADS][3];  // Array to hold parameters for each thread
 
-	// Creating threads
-	for (i = 0; i < gThreadCount; i++) {
-		params[i][0] = i;  // Thread number
-		params[i][1] = indices[i][1];  // Start index for this thread
-		params[i][2] = indices[i][2];  // End index for this thread
-		pthread_create(&tid[i], &attr, ThFindProd, (void*)params[i]);
-	}
+	// Initialize attributes for each thread
+    for (i = 0; i < MAX_THREADS; i++) {
+        pthread_attr_init(&attr[i]);
+    }
+
+	// Creating threads for section "START OF MY CODE 2"
+    for (i = 0; i < gThreadCount; i++) {
+        pthread_create(&tid[i], &attr[i], ThFindProd, (void*)&params[i]);
+    }
 
 	// Waiting for all threads to finish
 	for (i = 0; i < gThreadCount; i++) {
 		pthread_join(tid[i], NULL);
 	}
-	/*************** END OF MY CODE 2 ***************/
+
+	 // Destroy thread attributes after use
+    for (i = 0; i < MAX_THREADS; i++) {
+        pthread_attr_destroy(&attr[i]);
+    }
+/*************** END OF MY CODE 2 ***************/
 
 
 
@@ -116,7 +117,7 @@ int main(int argc, char *argv[]){
 	InitSharedVars();
 	SetTime();
 
-	/*************** START OF MY CODE 3 ***************/
+/*************** START OF MY CODE 3 ***************/
 	// Write your code here
     // Don't use any semaphores in this part
 	// Initialize threads, create threads, and then make the parent continually check on all child threads
@@ -124,19 +125,8 @@ int main(int argc, char *argv[]){
 	// Don't forget to properly initialize shared variables
 
 
-
-	int params[MAX_THREADS][3];  // Array to hold parameters for each thread
-
 	// Initialize shared variables
 	volatile bool all_done = false;
-
-	// Creating threads
-	for (i = 0; i < gThreadCount; i++) {
-		params[i][0] = i;  // Thread number
-		params[i][1] = indices[i][1];  // Start index for this thread
-		params[i][2] = indices[i][2];  // End index for this thread
-		pthread_create(&tid[i], &attr, ThFindProd, (void*)params[i]);
-	}
 
 	// Busy waiting loop
 	bool found_zero = false;
@@ -165,7 +155,7 @@ int main(int argc, char *argv[]){
 	for (i = 0; i < gThreadCount; i++) {
 		pthread_join(tid[i], NULL);
 	}
-	/*************** END OF MY CODE 3 ***************/
+/*************** END OF MY CODE 3 ***************/
 
 
     prod = ComputeTotalProduct();
@@ -185,19 +175,11 @@ int main(int argc, char *argv[]){
 	// The thread start function is ThFindProdWithSemaphore
 	// Don't forget to properly initialize shared variables and semaphores using sem_init
 
-	int params[MAX_THREADS][3];  // Array to hold parameters for each thread
 
 	// Initialize shared variables and semaphores
 	sem_init(&completed, 0, 0);  // Semaphore to signal completion
 	sem_init(&mutex, 0, 1);      // Binary semaphore for protecting shared variable gDoneThreadCount
 
-	// Creating threads
-	for (i = 0; i < gThreadCount; i++) {
-		params[i][0] = i;  // Thread number
-		params[i][1] = indices[i][1];  // Start index for this thread
-		params[i][2] = indices[i][2];  // End index for this thread
-		pthread_create(&tid[i], &attr, ThFindProdWithSemaphore, (void*)params[i]);
-	}
 
 	// Wait on the semaphore
 	for (i = 0; i < gThreadCount; i++) {
@@ -228,7 +210,6 @@ int main(int argc, char *argv[]){
 	sem_destroy(&completed);
 	sem_destroy(&mutex);
 
-	pthread_attr_destroy(&attr);  // Clean up attribute object
 /*************** END OF MY CODE SECTION 4 ***************/
 
 
@@ -329,52 +310,22 @@ void InitSharedVars() {
 	gDoneThreadCount = 0;
 }
 
-
-
-
-/*************** START OF MY CODE SECTION 7 ***************/
+/*************** END OF MY CODE SECTION 6 ***************/
 // Write a function that fills the gData array with random numbers between 1 and MAX_RANDOM_NUMBER
 // If indexForZero is valid and non-negative, set the value at that index to zero
-void* ThFindProdWithSemaphore(void *param) {
-    int *parameters = (int*)param;
-    int threadNum = parameters[0];
-    int start = parameters[1];
-    int end = parameters[2];
-    int localProd = 1;
-
-    // Calculate the product of elements in the designated section of the array
-    for (int i = start; i <= end; i++) {
-        if (gData[i] == 0) {
-            localProd = 0;
-            break;  // If zero is found, no need to continue multiplying
-        }
-        localProd = (localProd * gData[i]) % NUM_LIMIT;
+void GenerateInput(int size, int indexForZero) {
+    srand(RANDOM_SEED);  // Initialize random number generator
+    for (int i = 0; i < size; i++) {
+        gData[i] = GetRand(1, MAX_RANDOM_NUMBER);  // Generate random number between 1 and MAX_RANDOM_NUMBER
     }
-
-    // Store the result in the global array for thread products
-    gThreadProd[threadNum] = localProd;
-
-    if (localProd == 0) {
-        // If product is zero, signal completion immediately
-        sem_post(&completed);
-    } else {
-        // Protect access to gDoneThreadCount
-        sem_wait(&mutex);
-        gDoneThreadCount++;
-        if (gDoneThreadCount == gThreadCount) {
-            // If this is the last thread to finish, signal completion
-            sem_post(&completed);
-        }
-        sem_post(&mutex);
+    if (indexForZero >= 0 && indexForZero < size) {
+        gData[indexForZero] = 0;  // Set specified index to zero if within bounds
     }
-
-    return NULL;  // Thread completes execution
 }
-/*************** END OF MY CODE SECTION 7 ***************/
+/*************** END OF MY CODE SECTION 6 ***************/
 
 
-
-/*************** START OF MY CODE SECTION 6 ***************/
+/*************** START OF MY CODE SECTION 8 ***************/
 // Write a function that calculates the right indices to divide the array into thrdCnt equal divisions
 // For each division i, indices[i][0] should be set to the division number i,
 // indices[i][1] should be set to the start index, and indices[i][2] should be set to the end index
@@ -399,7 +350,7 @@ void CalculateIndices(int arraySize, int thrdCnt, int indices[MAX_THREADS][3]) {
         start = indices[i][2] + 1;  // Update start index for the next thread
     }
 }
-/*************** END OF MY CODE SECTION 6 ***************/
+/*************** END OF MY CODE SECTION 8 ***************/
 
 // Get a random number in the range [x, y]
 int GetRand(int x, int y) {
