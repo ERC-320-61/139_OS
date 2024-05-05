@@ -47,12 +47,11 @@ int main(int argc, char *argv[]){
     int params[MAX_THREADS][3]; // Parameters for each thread
 	int i, indexForZero, arraySize, prod;
 
-
 	// Code for parsing and checking command-line arguments
-	if(argc != 4){
-		fprintf(stderr, "Invalid number of arguments!\n");
-		exit(-1);
-	}
+	if (argc != 4) {
+        fprintf(stderr, "Invalid number of arguments!\n");
+        exit(-1);
+    }
 	if((arraySize = atoi(argv[1])) <= 0 || arraySize > MAX_SIZE){
 		fprintf(stderr, "Invalid Array Size\n");
 		exit(-1);
@@ -69,7 +68,6 @@ int main(int argc, char *argv[]){
 	}
 
     GenerateInput(arraySize, indexForZero);
-
     CalculateIndices(arraySize, gThreadCount, indices);
 
 	// Code for the sequential part
@@ -81,19 +79,29 @@ int main(int argc, char *argv[]){
 	InitSharedVars();
 	SetTime();
 
+
+
 /***************START OF MY CODE 2 ***************/
 	 // Write your code here
   	 // Initialize threads, create threads, and then let the parent wait for all threads using pthread_join
 	 // The thread start function is ThFindProd
 	 // Don't forget to properly initialize shared variables
 
-	// Initialize attributes for each thread
-    for (i = 0; i < MAX_THREADS; i++) {
-        pthread_attr_init(&attr[i]);
-    }
 
-	// Creating threads for section "START OF MY CODE 2"
+	  // Improved argument parsing with diagnostic output FOR DEBUGGING
+	 /*
+    fprintf(stdout, "argc = %d\n", argc);
+    for (int i = 0; i < argc; i++) {
+        fprintf(stdout, "argv[%d] = %s\n", i, argv[i]);
+    }
+	*/
+
+	// Initialize and create threads
     for (i = 0; i < gThreadCount; i++) {
+        pthread_attr_init(&attr[i]);
+        params[i][0] = i;  // Thread number
+        params[i][1] = indices[i][1];  // Start index
+        params[i][2] = indices[i][2];  // End index
         pthread_create(&tid[i], &attr[i], ThFindProd, (void*)&params[i]);
     }
 
@@ -102,20 +110,21 @@ int main(int argc, char *argv[]){
 		pthread_join(tid[i], NULL);
 	}
 
+
 	 // Destroy thread attributes after use
     for (i = 0; i < MAX_THREADS; i++) {
         pthread_attr_destroy(&attr[i]);
     }
+
 /*************** END OF MY CODE 2 ***************/
 
-
-
-    prod = ComputeTotalProduct();
+	prod = ComputeTotalProduct();
 	printf("Threaded multiplication with parent waiting for all children completed in %ld ms. Product = %d\n", GetTime(), prod);
 
 	// Multi-threaded with busy waiting (parent continually checking on child threads without using semaphores)
 	InitSharedVars();
 	SetTime();
+
 
 /*************** START OF MY CODE 3 ***************/
 	// Write your code here
@@ -155,6 +164,7 @@ int main(int argc, char *argv[]){
 	for (i = 0; i < gThreadCount; i++) {
 		pthread_join(tid[i], NULL);
 	}
+
 /*************** END OF MY CODE 3 ***************/
 
 
@@ -238,10 +248,22 @@ int SqFindProd(int size) {
 // Write a thread function that computes the product of all the elements in one division of the array mod NUM_LIMIT
 // REMEMBER TO MOD BY NUM_LIMIT AFTER EACH MULTIPLICATION TO PREVENT YOUR PRODUCT VARIABLE FROM OVERFLOWING
 // When it is done, this function should store the product in gThreadProd[threadNum] and set gThreadDone[threadNum] to true
-void* ThFindProd(void *param) {
-	int threadNum = ((int*)param)[0];
+void *ThFindProd(void *param) {
+    int *indices = (int*) param;
+    int threadNum = indices[0];
+    int start = indices[1];
+    int end = indices[2];
 
+    printf("Thread %d started with start: %d and end: %d\n", threadNum, start, end);
+
+    // Simulate some work
+    for (int i = start; i <= end; i++) {
+        // Example operation
+    }
+
+    return NULL;
 }
+
 
 /*************** START OF MY CODE SECTION 6 ***************/
 // Write a thread function that computes the product of all the elements in one division of the array mod NUM_LIMIT
@@ -286,6 +308,7 @@ void* ThFindProdWithSemaphore(void *param) {
 
     return NULL;  // Thread completes execution
 }
+
 /*************** END OF MY CODE SECTION 6 ***************/
 
 int ComputeTotalProduct() {
@@ -330,24 +353,18 @@ void GenerateInput(int size, int indexForZero) {
 // For each division i, indices[i][0] should be set to the division number i,
 // indices[i][1] should be set to the start index, and indices[i][2] should be set to the end index
 void CalculateIndices(int arraySize, int thrdCnt, int indices[MAX_THREADS][3]) {
-    int divisionSize = arraySize / thrdCnt;  // Calculate the size of each division
-    int remainder = arraySize % thrdCnt;    // Calculate the remainder to distribute extra elements
-    int start = 0;
+    int divisionSize = arraySize / thrdCnt;
+    int remainder = arraySize % thrdCnt;
+    int currentStart = 0;
 
     for (int i = 0; i < thrdCnt; i++) {
-        indices[i][0] = i;        // Set the division number
-        indices[i][1] = start;    // Set the start index for this thread
+        indices[i][0] = i;
+        indices[i][1] = currentStart;
+        int extra = (remainder > 0) ? 1 : 0; // Distribute remainder
+        indices[i][2] = currentStart + divisionSize + extra - 1;
 
-        // Calculate the end index for this thread
-        // If there's a remainder, distribute it among the first few threads
-        if (remainder > 0) {
-            indices[i][2] = start + divisionSize; // Include an extra element for this thread
-            remainder--;  // Decrease remainder after distributing one extra element
-        } else {
-            indices[i][2] = start + divisionSize - 1;
-        }
-
-        start = indices[i][2] + 1;  // Update start index for the next thread
+        currentStart = indices[i][2] + 1;
+        remainder -= extra;
     }
 }
 /*************** END OF MY CODE SECTION 8 ***************/
