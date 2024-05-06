@@ -5,7 +5,7 @@ Spring 2024
 Third Assignment: Multithreading and Synchronization
 Delgado, Eric
 OSs Tested on: Linux Only
-My Machine CPU: 13th Gen Intel(R) Core(TM) i9-13900KF CPU at 3.00GHz, 8 physical cores and 16 logical threads, VM
+Dedicated VM CPU: 13th Gen Intel(R) Core(TM) i9-13900KF CPU at 3.00GHz, 8 physical cores and 16 logical threads
 ECS Systems CPU: Intel(R) Xeon(R) Gold 6254 CPU at 3.10GHz, 4 logical processors, VM
 */
 
