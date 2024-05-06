@@ -110,7 +110,7 @@ int main(int argc, char *argv[]){
     	pthread_attr_destroy(&attr[i]);											
 	}
 
-/*************** END OF THREAD INITIALIZATION AND SYNCHRONIZATION ***************/
+	/*************** END OF THREAD INITIALIZATION AND SYNCHRONIZATION ***************/
 
 
 	prod = ComputeTotalProduct();
