@@ -1,3 +1,12 @@
+/*
+CSC 139
+Section #03
+Spring 2024
+Third Assignment: Multithreading and Synchronization
+Delgado, Eric
+OSs Tested on: Linux Only
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
