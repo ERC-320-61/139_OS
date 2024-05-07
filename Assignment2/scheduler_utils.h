@@ -3,50 +3,6 @@
 #include <string.h>
 #include "scheduler.h"
 
-<<<<<<< Updated upstream
-=======
-#define MAX_EVENTS 100
-SchedulingEvent events[MAX_EVENTS];
-int events_count = 0;
-
-
-
-void initQueue(PriorityQueue *pq, int capacity) {
-    pq->queue = (Process**) malloc(sizeof(Process*) * capacity);
-    pq->capacity = capacity;
-    pq->size = 0;
-}
-
-void enqueue(PriorityQueue *pq, Process *proc) {
-    // Enqueue logic based on priority
-}
-
-bool isEmpty(PriorityQueue *pq) {
-    return pq->size == 0;
-}
-
-Process* dequeue(PriorityQueue *pq) {
-    if (pq->size == 0) return NULL;  // If the queue is empty, return NULL
-
-    Process* highestPriorityProcess = pq->queue[0];  // The process with the highest priority is at the front
-    int i;
-
-    // Shift all processes down in the queue to fill the gap
-    for (i = 1; i < pq->size; i++) {
-        pq->queue[i - 1] = pq->queue[i];
-    }
-    
-    pq->size--;  // Decrease the size of the queue
-
-    return highestPriorityProcess;  // Return the process with the highest priority
-}
-
-
-
-
-
-
->>>>>>> Stashed changes
 /***** CALCULATE AVERAGE WAITING TIME *****/
 void calculate_waiting_average(Process procs[], int n) {
     double total_waiting_time = 0.0;                                 // Initialize total waiting time to zero
@@ -57,6 +13,13 @@ void calculate_waiting_average(Process procs[], int n) {
     printf("\nAverage Waiting Time: %.2f\n", average_waiting_time);  // Print average waiting time
 }
 
+void calculate_waiting_time_prempt(Process *proc, int current_time) {
+    if (!proc->has_started) {
+        proc->has_started = true;  // Only set the first time process is started
+        proc->waiting_time = current_time - proc->arrival_time - (proc->cpu_burst_time - proc->remaining_time);
+    }
+}
+
 /***** CALCULATE WAITING TIME *****/
 void calculate_waiting_time(Process *proc, int current_time) {
     proc->waiting_time = current_time - proc->arrival_time - proc->cpu_burst_time;  // Calculate waiting time for a process
@@ -64,7 +27,7 @@ void calculate_waiting_time(Process *proc, int current_time) {
 
 /***** SHOW PROCESSES TIMES *****/
 void print_process_time_results(Process procs[], int n) {
-    printf("      Process         Waiting (T)    Finish (T)\n");      // Print header for results
+    printf("      Time        Process    \n");      // Print header for results
     printf("-------------------------------------------\n");          
     for (int i = 0; i < n; i++) {                                     
         printf("%10d %15d %15d\n",                                    // Print process ID, waiting time, and finish time
@@ -81,6 +44,15 @@ void print_process_burst_times(Process procs[], int n) {
                procs[i].process_number, procs[i].cpu_burst_time);
     }
 }
+
+
+bool all_processes_completed(bool completed[], int n) {
+    for (int i = 0; i < n; i++) {
+        if (!completed[i]) return false;
+    }
+    return true;
+}
+
 
 /***** EXECUTE SCHEDULING *****/
 void execute_schedule(const char* algo, Process* procs, int n, int quantum) {

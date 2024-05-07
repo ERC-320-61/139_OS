@@ -19,6 +19,7 @@ typedef struct {
     int priority;               // Priority for scheduling
     int start_time;             // Time when the process starts its execution
     int finish_time;            // Time when the process finishes its execution
+    bool is_complete;
     int arrival_time;           // Time when the process arrives
     int waiting_time;           // Total time the process has been in the ready queue
     int response_time;          // Time from arrival until the first time the process is scheduled on the CPU
@@ -27,14 +28,6 @@ typedef struct {
     int last_execution_time;    // The last time when the process was executed on the CPU (for response time in pre-emptive algorithms)
 } Process;
 
-<<<<<<< Updated upstream
-=======
-typedef struct {
-    int time_point;
-    int process_number;
-} SchedulingEvent;
-
->>>>>>> Stashed changes
 
 /*
 * The `Queue` structure holds an array of pointers to `Process` structures, 

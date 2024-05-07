@@ -93,205 +93,135 @@ void round_robin(Process procs[], int n, int quantum) {
 
 /****** SHORTEST JOB FIRST ******/
 void sjf(Process procs[], int n) {
-    int current_time = 0;                                                                   // Initialize current time to 0
-    bool completed[n];                                                                      // Create an array to track completion status of each process
+    int current_time = 0;
+    bool completed[n];
     for (int i = 0; i < n; i++) {
-        completed[i] = false;                                                               // Initialize all process completion statuses to false
+        completed[i] = false;
     }
-    int processes_completed = 0;                                                            // Counter for the number of processes that have completed
+    int processes_completed = 0;
 
-    while (processes_completed < n) {                                                       // Continue looping until all processes are completed
-        int shortest_time = INT_MAX;                                                        // Initialize shortest_time with the maximum possible value
-        int idx = -1;                                                                       // Initialize idx as -1, to store the index of the process with the shortest burst time
-        for (int i = 0; i < n; i++) {                                                       // Iterate over all processes to find the one with the shortest CPU burst time
-            if (!completed[i] && procs[i].arrival_time <= current_time && procs[i].cpu_burst_time < shortest_time) {    // If process i is not completed, has arrived, and has a burst time shorter than the current shortest
-                shortest_time = procs[i].cpu_burst_time;                                    // Update shortest_time with the smallest burst time found
-                idx = i;                                                                    // Update idx with the index of the process
+    printf("\n    -SJF-\n");  // Header for SJF output
+    printf(" Time   Process    \n");      // Print header for results
+    printf("-------------------\n");   
+    while (processes_completed < n) {
+        int shortest_time = INT_MAX;
+        int idx = -1;
+        for (int i = 0; i < n; i++) {
+            if (!completed[i] && procs[i].arrival_time <= current_time && procs[i].cpu_burst_time < shortest_time) {
+                shortest_time = procs[i].cpu_burst_time;
+                idx = i;
             }
         }
-        if (idx == -1) {                                                                    // If no process is ready to execute
-            current_time++;                                                                 // Increment current time by 1 unit
-        } else {                                                                            // If a process is ready to execute
-            current_time += procs[idx].cpu_burst_time;                                      // Update current_time by adding the burst time of the selected process
-            procs[idx].finish_time = current_time;                                          // Set the finish time for the process
-            calculate_waiting_time(&procs[idx], current_time);                              // Calculate waiting time
-            completed[idx] = true;                                                          // Mark this process as completed
-            processes_completed++;                                                          // Increment the count of completed processes
+        if (idx == -1) {
+            current_time++;  // Increment time if no process can be executed
+        } else {
+            // Print the current time and the process number about to start execution
+            printf("%4d\t%4d\n", current_time, procs[idx].process_number);
+
+            current_time += procs[idx].cpu_burst_time; // Execute the process
+            procs[idx].finish_time = current_time;    // Set the finish time
+            calculate_waiting_time(&procs[idx], current_time); // Calculate its waiting time
+            completed[idx] = true;  // Mark the process as completed
+            processes_completed++;  // Increment the count of completed processes
         }
     }
-
-    print_process_time_results(procs, n);                                                   // Call to print the process time results
-    calculate_waiting_average(procs, n);                                                    // Calculate and print the average waiting time for all processes
+    calculate_waiting_average(procs, n);  // Print average waiting time
 }
 
 
 
 /****** PRIORITY SCHEDULING WITHOUT PREEMPTION ******/
 void pr_noPREMP(Process procs[], int n) {
-    int current_time = 0;                                                                   // Initialize current time to 0 for the start of scheduling
-    bool completed[n];                                                                      // Array to track completion status of each process
+    int current_time = 0;
+    bool completed[n];
     for (int i = 0; i < n; i++) {
-        completed[i] = false;                                                               // Initialize all processes as not completed
+        completed[i] = false;
     }
-    int processes_completed = 0;                                                            // Counter for the number of processes that have completed execution
+    int processes_completed = 0;
 
-    while (processes_completed < n) {                                                       // Continue scheduling until all processes are completed
-        int highest_priority = INT_MAX;                                                     // Start with the highest possible priority (lower number means higher priority)
-        int idx = -1;                                                                       // Index of the currently selected process for execution
+    printf("\n -Pr_noPREMP- \n");
+    printf(" Time   Process    \n");      // Print header for results
+    printf("-------------------\n");   
+    while (processes_completed < n) {
+        int highest_priority = INT_MAX;
+        int idx = -1;
 
-        for (int i = 0; i < n; i++) {                                                       // For all process find the process with the highest priority that has arrived
-            if (!completed[i] && procs[i].arrival_time <= current_time && procs[i].priority < highest_priority) { // If process i is not completed, has arrived, and has a burst time shorter than the current shortest
-                highest_priority = procs[i].priority;                                       // Update the highest priority found
-                idx = i;                                                                    // Update the index of the process with the highest priority
+        for (int i = 0; i < n; i++) {
+            if (!completed[i] && procs[i].arrival_time <= current_time && procs[i].priority < highest_priority) {
+                highest_priority = procs[i].priority;
+                idx = i;
             }
         }
 
-        if (idx == -1) {                                                                    // If no process is ready to run, increment the current time
-            current_time++;
-        } else {                                                                            // If a process is found
-            current_time += procs[idx].cpu_burst_time;                                      // Increase current time by the burst time of the selected process
-            procs[idx].finish_time = current_time;                                          // Set finish time for the process
-            calculate_waiting_time(&procs[idx], current_time);                              // Calculate waiting time
-            completed[idx] = true;                                                          // Mark the process as completed
-            processes_completed++;                                                          // Increment the count of completed processes
+        if (idx == -1) {
+            current_time++;  // No process is ready, increment the current time
+        } else {
+            printf("%4d\t%4d\n", current_time, procs[idx].process_number);  // Print start time and process number
+            current_time += procs[idx].cpu_burst_time;  // Execute the process
+            procs[idx].finish_time = current_time;
+            calculate_waiting_time(&procs[idx], current_time);  // Calculate waiting time
+            completed[idx] = true;
+            processes_completed++;
         }
     }
 
-    print_process_time_results(procs, n);                                                   // Print results for each process
-    calculate_waiting_average(procs, n);                                                    // Calculate and print the average waiting time of all processes
+    calculate_waiting_average(procs, n);  // Calculate and print the average waiting time
 }
 
 
 
 /****** PRIORITY SCHEDULING WITH PREEMPTION ******/
 void PR_PREMP(Process procs[], int n) {
-<<<<<<< Updated upstream
-    int current_time = 0;                                                                   // Initialize current simulation time
-    int current_process_idx = -1;                                                           // Index for tracking the currently executing process
-    int current_process_end_time = INT_MAX;                                                 // End time for the currently executing process
-    bool completed[n];                                                                      // Initialize an array to keep track of completion status of processes
-=======
     int current_time = 0;
-    PriorityQueue pq;
-    initQueue(&pq, n);
-    bool completed[n];
-    int process_active = 0;
->>>>>>> Stashed changes
+    int idx = -1;
 
-    Process *current_process = NULL;  // Pointer to the current process being executed
-
-    // Initialize process states
-    for (int i = 0; i < n; i++) {
-<<<<<<< Updated upstream
-        completed[i] = false;                                                               // Initialize all processes as not completed
-        procs[i].has_started = false;                                                       // Mark all processes as not started
-    }
-
-    while (true) {                                                                          // While all process aren't done, check for new arrivals and possible preemption
-        bool found_higher_priority = false;                                                 // Flag to check if a higher priority process is found
+    printf("PR_withPREMP\n");
+    while (true) {
+        // Find the highest priority process that can run now
+        int min_priority = INT_MAX;
         for (int i = 0; i < n; i++) {
-            if (procs[i].arrival_time <= current_time && !procs[i].has_started && !completed[i]) {            // If the process is ready to run and has not been completed or started
-                if (current_process_idx == -1 || (procs[i].priority < procs[current_process_idx].priority && procs[i].remaining_time > 0)) {    // If no current process or a higher priority process is found
-                    if (current_process_idx != -1 && current_time < current_process_end_time) {               // Preempt the current process if a higher priority process is found
-                        procs[current_process_idx].remaining_time = current_process_end_time - current_time;  // Save the remaining time for the preempted process
-                    }
-                    current_process_idx = i;                                                // Update the current process index
-                    current_process_end_time = current_time + procs[i].cpu_burst_time;      // Set the end time for the current process
-                    procs[i].has_started = true;                                            // Mark the process as started
-                    found_higher_priority = true;                                           // Set the flag for higher priority found
+            if (!procs[i].is_complete && procs[i].arrival_time <= current_time && procs[i].priority < min_priority) {
+                min_priority = procs[i].priority;
+                idx = i;
+            }
+        }
+
+        if (idx != -1) {  // There is a process that can run
+            Process *p = &procs[idx];
+            if (!p->has_started) {
+                p->has_started = true;
+                printf("%d\t%d\n", current_time, p->process_number);  // Print when a process starts
+            }
+
+            // Run this process for one unit of time
+            p->remaining_time--;
+            if (p->remaining_time == 0) {
+                p->is_complete = true;
+                calculate_waiting_time_prempt(p, current_time + 1);  // Process completes at the next time unit
+                printf("%d\t%d\n", current_time + 1, p->process_number);  // Print when a process completes
+            }
+
+            // Check if any higher priority process arrives next time unit
+            for (int j = 0; j < n; j++) {
+                if (!procs[j].is_complete && procs[j].arrival_time == current_time + 1 && procs[j].priority < p->priority) {
+                    idx = j;  // Preempt current process
+                    break;
                 }
             }
         }
 
-        if (current_process_idx != -1 && !found_higher_priority) {                          // If no higher priority process was found, execute the current process 
-            if (current_time >= current_process_end_time) {                                 // Check if the current time has reached the process end time
-                procs[current_process_idx].finish_time = current_time;                      // Set the finish time for the process
-                calculate_waiting_time(&procs[current_process_idx], current_time);          // Calculate waiting time
-                completed[current_process_idx] = true;                                      // Mark the process as completed
-                current_process_idx = -1;                                                   // Reset the current process index
-            }
-        }
-
-        // Check if all processes are completed
+        // Check for completion
         bool all_done = true;
         for (int i = 0; i < n; i++) {
-            if (!completed[i]) {
-                all_done = false;                                                           // If any process is not completed, continue the loop
+            if (!procs[i].is_complete) {
+                all_done = false;
                 break;
             }
         }
-        if (all_done) {                                                                     // if all procces are done
-            break;                                                                          // Exit the loop 
-        }
+        if (all_done) break;
 
-        current_time++;                                                                     // Increment the simulation time
+        current_time++;  // Move to the next time unit
     }
 
-    print_process_time_results(procs, n);                                                   // Call to print results
-    calculate_waiting_average(procs, n);                                                    // Calculate and print the average waiting time
+    calculate_waiting_average(procs, n);
 }
-=======
-        procs[i].has_started = false;
-        procs[i].remaining_time = procs[i].cpu_burst_time;
-        completed[i] = false;
-    }
-
-    while (process_active < n) {
-        // Enqueue new arrivals or reevaluate priorities
-        for (int i = 0; i < n; i++) {
-            if (procs[i].arrival_time <= current_time && !procs[i].has_started) {
-                enqueue(&pq, &procs[i]);
-                procs[i].has_started = true;
-            }
-        }
-
-        Process *next_process = isEmpty(&pq) ? NULL : dequeue(&pq);
-
-        if (next_process != NULL) {
-            // Log the process start only if it's a different process or if it was preempted
-            if (current_process != next_process) {
-                if (current_process != NULL && current_process->remaining_time > 0) {
-                    // Re-enqueue the current process if it was preempted and still has remaining time
-                    enqueue(&pq, current_process);
-                }
-                printf("%d\t%d\n", current_time, next_process->process_number); // Log the process execution start
-                current_process = next_process;
-            }
-
-            int exec_time = (next_process->remaining_time > 1) ? 1 : next_process->remaining_time;
-            next_process->remaining_time -= exec_time;
-            current_time += exec_time;
-
-            // Check if the process is completed
-            if (next_process->remaining_time <= 0) {
-                next_process->finish_time = current_time;
-                calculate_waiting_time(next_process, current_time);
-                completed[next_process->process_number - 1] = true;
-                process_active++;
-                current_process = NULL; // Reset current process since it finished
-            }
-        } else {
-            // Increment time if no process is ready to be executed
-            current_time++;
-            current_process = NULL;
-        }
-
-        // Aging mechanism to prevent starvation
-        for (int i = 0; i < n; i++) {
-            if (!completed[i] && procs[i].arrival_time <= current_time && current_time % 5 == 0) {
-                procs[i].priority--;
-            }
-        }
-
-        // Re-sort processes based on the updated priorities if using array
-        qsort(procs, n, sizeof(Process), compare_priority);
-    }
-
-    // Calculate and print the average waiting time
-    double total_waiting_time = 0;
-    for (int i = 0; i < n; i++) {
-        total_waiting_time += procs[i].waiting_time;
-    }
-    printf("AVG Waiting Time: %.2f\n", total_waiting_time / n);
-}
->>>>>>> Stashed changes
