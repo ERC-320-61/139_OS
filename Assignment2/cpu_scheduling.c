@@ -174,10 +174,10 @@ void pr_noPREMP(Process procs[], int n) {
 void PR_PREMP(Process procs[], int n) {
     int current_time = 0;
     int idx = -1;
+    int last_process = -1;  // Track the last running process to handle preemption checks accurately.
 
     printf("PR_withPREMP\n");
     while (true) {
-        // Find the highest priority process that can run now
         int min_priority = INT_MAX;
         for (int i = 0; i < n; i++) {
             if (!procs[i].is_complete && procs[i].arrival_time <= current_time && procs[i].priority < min_priority) {
@@ -188,20 +188,25 @@ void PR_PREMP(Process procs[], int n) {
 
         if (idx != -1) {  // There is a process that can run
             Process *p = &procs[idx];
-            if (!p->has_started) {
+
+            // Ensure that the process is reported as starting whenever it is actually going to execute
+            if (!p->has_started || (last_process != idx && p->remaining_time > 0)) {
+                printf("%d\t%d\n", current_time, p->process_number);  // Print when a process starts or is preempted
                 p->has_started = true;
-                printf("%d\t%d\n", current_time, p->process_number);  // Print when a process starts
+                last_process = idx;  // Update last process to current
             }
 
             // Run this process for one unit of time
             p->remaining_time--;
+
+            // FOR DEBBUGING: printf("Executing: Time %d, Process %d, Remaining Time %d\n", current_time, p->process_number, p->remaining_time);
+            
             if (p->remaining_time == 0) {
                 p->is_complete = true;
                 calculate_waiting_time_prempt(p, current_time + 1);  // Process completes at the next time unit
-                printf("%d\t%d\n", current_time + 1, p->process_number);  // Print when a process completes
             }
 
-            // Check if any higher priority process arrives next time unit
+            // Check for higher priority process arrivals for the next time unit
             for (int j = 0; j < n; j++) {
                 if (!procs[j].is_complete && procs[j].arrival_time == current_time + 1 && procs[j].priority < p->priority) {
                     idx = j;  // Preempt current process
@@ -210,7 +215,7 @@ void PR_PREMP(Process procs[], int n) {
             }
         }
 
-        // Check for completion
+        // Check for completion of all processes
         bool all_done = true;
         for (int i = 0; i < n; i++) {
             if (!procs[i].is_complete) {
