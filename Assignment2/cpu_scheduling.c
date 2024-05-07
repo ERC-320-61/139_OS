@@ -174,9 +174,11 @@ void pr_noPREMP(Process procs[], int n) {
 void PR_PREMP(Process procs[], int n) {
     int current_time = 0;
     int idx = -1;
-    int last_process = -1;  // Track the last running process to handle preemption checks accurately.
+    int last_process = -1;
 
-    printf("PR_withPREMP\n");
+    printf("\n PR_withPREMP\n");
+    printf(" Time   Process    \n");      // Print header for results
+    printf("-------------------\n");   
     while (true) {
         int min_priority = INT_MAX;
         for (int i = 0; i < n; i++) {
@@ -191,19 +193,18 @@ void PR_PREMP(Process procs[], int n) {
 
             // Ensure that the process is reported as starting whenever it is actually going to execute
             if (!p->has_started || (last_process != idx && p->remaining_time > 0)) {
-                printf("%d\t%d\n", current_time, p->process_number);  // Print when a process starts or is preempted
+                printf("%4d\t%4d\n", current_time, p->process_number);  // Print when a process starts or is preempted
                 p->has_started = true;
                 last_process = idx;  // Update last process to current
             }
 
             // Run this process for one unit of time
             p->remaining_time--;
-
-            // FOR DEBBUGING: printf("Executing: Time %d, Process %d, Remaining Time %d\n", current_time, p->process_number, p->remaining_time);
-            
             if (p->remaining_time == 0) {
                 p->is_complete = true;
-                calculate_waiting_time_prempt(p, current_time + 1);  // Process completes at the next time unit
+                // Directly calculate and store waiting time when a process completes
+                p->waiting_time = current_time + 1 - p->arrival_time - p->cpu_burst_time;
+                // FOR DEBUGGING: printf("Completing: Time %d, Process %d, Waiting Time %d\n", current_time + 1, p->process_number, p->waiting_time);
             }
 
             // Check for higher priority process arrivals for the next time unit
@@ -228,5 +229,12 @@ void PR_PREMP(Process procs[], int n) {
         current_time++;  // Move to the next time unit
     }
 
-    calculate_waiting_average(procs, n);
+    // Calculate and print average waiting time after all processes complete
+    double total_waiting_time = 0.0;
+    for (int i = 0; i < n; i++) {
+        total_waiting_time += procs[i].waiting_time;
+    }
+    double average_waiting_time = total_waiting_time / n;
+    printf("AVG Waiting Time: %.2f\n", average_waiting_time);
 }
+

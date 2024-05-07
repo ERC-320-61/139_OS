@@ -57,7 +57,6 @@ bool all_processes_completed(bool completed[], int n) {
 /***** EXECUTE SCHEDULING *****/
 void execute_schedule(const char* algo, Process* procs, int n, int quantum) {
     printf("\nExecuting %s scheduling...\n", algo);                  // Print the scheduling algorithm being executed
-    print_process_burst_times(procs, n);                             // Print burst times of all processes
 
     if (strcmp(algo, "RR") == 0) {                                   // If the algorithm is Round Robin
         round_robin(procs, n, quantum);                              // Execute Round Robin scheduling
