@@ -12,24 +12,138 @@ OSs Tested on: Linux Only
 #include <string.h>
 #include <stdbool.h>
 #include <limits.h>
-#include "scheduler.h"
-#include "scheduler_utils.h"
+
+#define MAX_PROCESSES 100
+
+
+/*
+* Used `typedef struct` to define structure of a `Process` 
+* These attributes make it easier to manage CPU Scheduling
+*/
+typedef struct {
+    bool has_started;           // Boolean flag to indicate if the process has started execution
+    int process_number;         // Unique identifier
+    int priority;               // Priority for scheduling
+    int start_time;             // Time when the process starts its execution
+    int finish_time;            // Time when the process finishes its execution
+    bool is_complete;
+    int arrival_time;           // Time when the process arrives
+    int waiting_time;           // Total time the process has been in the ready queue
+    int response_time;          // Time from arrival until the first time the process is scheduled on the CPU
+    int remaining_time;         // Time remaining for the process to complete execution
+    int cpu_burst_time;         // Time the process requires CPU
+    int last_execution_time;    // The last time when the process was executed on the CPU (for response time in pre-emptive algorithms)
+} Process;
+
+
+/*
+* The `Queue` structure holds an array of pointers to `Process` structures, 
+* enabling the queue operations required for process management.
+*/
+typedef struct {
+    Process *processes[MAX_PROCESSES];  // Array holding pointers to 'Process' instances, with 'MAX_PROCESSES' as its capacity.
+    int count;                          // Counts the number of 'Process' pointers currently in the queue.
+} Queue;
+
+typedef struct {
+    Process **queue;
+    int size;
+    int capacity;
+} PriorityQueue;
+
+// Declaration of algorithm Functions
+void sjf(Process procs[], int n);
+void PR_PREMP(Process procs[], int n);
+void pr_noPREMP(Process procs[], int n);
+void round_robin(Process procs[], int n, int quantum);
+
+// Declaration of helper function
+void print_process_burst_times(Process procs[], int n);                         // Function to print the CPU burst times for all processes  
+void calculate_waiting_average(Process procs[], int n);                         // Function to calculate and print the average waiting time for all processes
+void print_process_time_results(Process procs[], int n);                        // Function to print the results for process times
+void calculate_waiting_time(Process *proc, int current_time);                   // Function to calculate the waiting time for a process based on current simulation time
+void execute_schedule(const char* algo, Process* procs, int n, int quantum);    // Function to execute scheduling based on the specified algorithm
+int initialize_scheduling(const char* filename_base, Process* procs, int* n, char* scheduling_algo, int* quantum);      // Function to initialize scheduling from a specified file base name
+
+void initQueue(PriorityQueue *pq, int capacity);
+
+void enqueue(PriorityQueue *pq, Process *proc);
+
+bool isEmpty(PriorityQueue *pq);
+
+Process* dequeue(PriorityQueue *pq);
 
 
 
 /****** MAIN ******/
 int main() {
     Process procs[MAX_PROCESSES];
-    int n, quantum;
+    int n, quantum = 0;
     char scheduling_algo[25];
+    char filename[50];
+    FILE *file_ptr = NULL;
 
-    if (initialize_scheduling("input", procs, &n, scheduling_algo, &quantum) != 0) {
+    // Try to open a specific input file
+    snprintf(filename, sizeof(filename), "input.txt");
+    file_ptr = fopen(filename, "r");
+    if (!file_ptr) {
+        perror("Error opening input file");
         return EXIT_FAILURE;
     }
 
-    execute_schedule(scheduling_algo, procs, n, quantum);
+    // Read scheduling algorithm type and possibly quantum
+    if (fscanf(file_ptr, "%s", scheduling_algo) != 1) {
+        fprintf(stderr, "Failed to read scheduling algorithm\n");
+        fclose(file_ptr);
+        return EXIT_FAILURE;
+    }
+    if (strcmp(scheduling_algo, "RR") == 0) {
+        if (fscanf(file_ptr, "%d", &quantum) != 1) {
+            fprintf(stderr, "Failed to read quantum for RR\n");
+            fclose(file_ptr);
+            return EXIT_FAILURE;
+        }
+    }
 
-    return 0;  // Return 0 to indicate successful execution
+    // Read number of processes
+    if (fscanf(file_ptr, "%d", &n) != 1) {
+        fprintf(stderr, "Failed to read number of processes\n");
+        fclose(file_ptr);
+        return EXIT_FAILURE;
+    }
+
+    // Read process data
+    for (int i = 0; i < n; i++) {
+        if (fscanf(file_ptr, "%d %d %d %d",
+                   &procs[i].process_number,
+                   &procs[i].arrival_time,
+                   &procs[i].cpu_burst_time,
+                   &procs[i].priority) != 4) {
+            fprintf(stderr, "Failed to read data for process %d\n", i);
+            fclose(file_ptr);
+            return EXIT_FAILURE;
+        }
+        procs[i].remaining_time = procs[i].cpu_burst_time;
+        procs[i].has_started = false;
+        procs[i].is_complete = false;
+    }
+    fclose(file_ptr);
+
+    // Execute scheduling based on the algorithm specified
+    if (strcmp(scheduling_algo, "RR") == 0) {
+        round_robin(procs, n, quantum);
+    } else if (strcmp(scheduling_algo, "SJF") == 0) {
+        sjf(procs, n);
+    } else if (strcmp(scheduling_algo, "PR_noPREMP") == 0) {
+        pr_noPREMP(procs, n);
+    } else if (strcmp(scheduling_algo, "PR_withPREMP") == 0) {
+        PR_PREMP(procs, n);
+    } else {
+        fprintf(stderr, "Invalid scheduling algorithm specified.\n");
+        return EXIT_FAILURE;
+    }
+
+    return 0;  // Indicate successful execution
 }
 
 
@@ -40,53 +154,58 @@ int main() {
 
 /****** ROUND ROBIN ******/
 void round_robin(Process procs[], int n, int quantum) {
-    int current_time = 0;                                                                   // Initialize current time to 0 for the start of scheduling
-    int exec_time;                                                                          // Declare a variable to hold the execution time of a process during a quantum slice
-    int completed = 0;                                                                      // Counter for the number of processes that have completed execution
-    Queue queue;                                                                            // Declare a queue to manage the processes ready for execution
-    queue.count = 0;                                                                        // Initialize the process count in the queue to 0
-
+    int current_time = 0;
+    Queue queue = { .count = 0 };
+    double total_waiting_time = 0.0;
+    int completed = 0;
 
     while (completed < n) {
+        // Enqueue newly arrived processes
         for (int i = 0; i < n; i++) {
-            if (procs[i].arrival_time <= current_time && !procs[i].has_started) {           // Check if process has arrived AND not started
-                queue.processes[queue.count++] = &procs[i];                                 // Enqueue the process
-                procs[i].has_started = 1;                                                   // Mark as started
+            if (procs[i].arrival_time <= current_time && !procs[i].has_started) {
+                queue.processes[queue.count++] = &procs[i];
+                procs[i].has_started = true;
             }
         }
 
-        if (queue.count == 0) {                                                             // Check If Queue Is Empty
-            current_time++;                                                                 // Increment the current time
-            continue;                                                                       // Skip to the next iteration of the loop
+        if (queue.count == 0) {
+            current_time++;
+            continue;
         }
 
-        Process *proc_ptr = queue.processes[0];                                             // Create pointer for curent process & get the first process in the queue
-        for (int i = 0; i < queue.count - 1; i++) {                                         // Loop to shift all processes in the queue up by one position
-            queue.processes[i] = queue.processes[i + 1];                                    // Move each process one position forward in the queue
+        // Dequeue the first process in the queue
+        Process *proc_ptr = queue.processes[0];
+        for (int i = 0; i < queue.count - 1; i++) {
+            queue.processes[i] = queue.processes[i + 1];
         }
-        queue.count--;                                                                      // Decrease count as the first process is taken out for execution
+        queue.count--;
 
-        if (proc_ptr->remaining_time < quantum) {                                           // If remaining time is less than the quantum
-            exec_time = proc_ptr->remaining_time;                                           // Assign remaining time to exec_time
+        // Determine execution time for this quantum
+        int exec_time = (proc_ptr->remaining_time < quantum) ? proc_ptr->remaining_time : quantum;
+        proc_ptr->remaining_time -= exec_time;
+        current_time += exec_time;
+
+        // Check if the process has finished execution
+        if (proc_ptr->remaining_time == 0) {
+            proc_ptr->finish_time = current_time;
+            proc_ptr->waiting_time = proc_ptr->finish_time - proc_ptr->arrival_time - proc_ptr->cpu_burst_time;
+            total_waiting_time += proc_ptr->waiting_time;
+            completed++;
         } else {
-            exec_time = quantum;                                                            // Else assign quantum to exec_time if remaining time is more
+            queue.processes[queue.count++] = proc_ptr; // Re-enqueue if not completed
         }
-        proc_ptr->remaining_time -= exec_time;                                              // Subtract the execution time from the process's remaining time
-        current_time += exec_time;                                                          // Increment the current time by the execution time
-
-        
-        if (proc_ptr->remaining_time > 0) {                                                 // Check if there is still execution time left for the process
-            queue.processes[queue.count++] = proc_ptr;                                      // Reinsert the process into the queue if it has time left
-        } else {
-            completed++;                                                                    // Increment count of completed processes
-            proc_ptr->finish_time = current_time;                                           // Set finish time for the process
-            calculate_waiting_time(proc_ptr, current_time);                                 // Calculate waiting time
-        }
-
     }
 
-    print_process_time_results(procs, n);                                                   // Call to print results
-    calculate_waiting_average(procs, n);                                                    // Calculate and print the average waiting time
+    // Print results directly
+    printf("Processes completion and waiting times:\n");
+    printf("Process\tFinish Time\tWaiting Time\n");
+    for (int i = 0; i < n; i++) {
+        printf("%d\t%d\t\t%d\n", procs[i].process_number, procs[i].finish_time, procs[i].waiting_time);
+    }
+
+    // Calculate and print the average waiting time
+    double average_waiting_time = total_waiting_time / n;
+    printf("Average Waiting Time: %.2f\n", average_waiting_time);
 }
 
 
@@ -95,13 +214,15 @@ void round_robin(Process procs[], int n, int quantum) {
 void sjf(Process procs[], int n) {
     int current_time = 0;
     bool completed[n];
+    double total_waiting_time = 0.0;  // For calculating average waiting time
+
     for (int i = 0; i < n; i++) {
         completed[i] = false;
     }
     int processes_completed = 0;
 
-    printf("\n    -SJF-\n");  // Header for SJF output
-    printf(" Time   Process    \n");      // Print header for results
+    printf("\n    -SJF-\n");
+    printf(" Time   Process\n");
     printf("-------------------\n");   
     while (processes_completed < n) {
         int shortest_time = INT_MAX;
@@ -115,17 +236,22 @@ void sjf(Process procs[], int n) {
         if (idx == -1) {
             current_time++;  // Increment time if no process can be executed
         } else {
-            // Print the current time and the process number about to start execution
-            printf("%4d\t%4d\n", current_time, procs[idx].process_number);
+            Process *p = &procs[idx];
+            printf("%4d\t%4d\n", current_time, p->process_number);
 
-            current_time += procs[idx].cpu_burst_time; // Execute the process
-            procs[idx].finish_time = current_time;    // Set the finish time
-            calculate_waiting_time(&procs[idx], current_time); // Calculate its waiting time
+            p->waiting_time = current_time - p->arrival_time;  // Direct calculation of waiting time
+            total_waiting_time += p->waiting_time;  // Accumulate waiting time for average calculation
+
+            current_time += p->cpu_burst_time; // Execute the process
+            p->finish_time = current_time;    // Set the finish time
             completed[idx] = true;  // Mark the process as completed
             processes_completed++;  // Increment the count of completed processes
         }
     }
-    calculate_waiting_average(procs, n);  // Print average waiting time
+
+    // Calculate and print average waiting time after all processes complete
+    double average_waiting_time = (processes_completed > 0) ? total_waiting_time / processes_completed : 0.0;
+    printf("AVG Waiting Time: %.2f\n", average_waiting_time);
 }
 
 
@@ -134,13 +260,15 @@ void sjf(Process procs[], int n) {
 void pr_noPREMP(Process procs[], int n) {
     int current_time = 0;
     bool completed[n];
+    double total_waiting_time = 0.0;  // Moved here for direct calculation
+
     for (int i = 0; i < n; i++) {
         completed[i] = false;
     }
     int processes_completed = 0;
 
     printf("\n -Pr_noPREMP- \n");
-    printf(" Time   Process    \n");      // Print header for results
+    printf(" Time   Process    \n");
     printf("-------------------\n");   
     while (processes_completed < n) {
         int highest_priority = INT_MAX;
@@ -156,17 +284,23 @@ void pr_noPREMP(Process procs[], int n) {
         if (idx == -1) {
             current_time++;  // No process is ready, increment the current time
         } else {
-            printf("%4d\t%4d\n", current_time, procs[idx].process_number);  // Print start time and process number
-            current_time += procs[idx].cpu_burst_time;  // Execute the process
-            procs[idx].finish_time = current_time;
-            calculate_waiting_time(&procs[idx], current_time);  // Calculate waiting time
+            Process *p = &procs[idx];
+            printf("%4d\t%4d\n", current_time, p->process_number);  // Print start time and process number
+            p->start_time = current_time;  // Record the start time
+            current_time += p->cpu_burst_time;  // Execute the process
+            p->finish_time = current_time;
+            p->waiting_time = p->start_time - p->arrival_time;  // Direct calculation of waiting time
+            total_waiting_time += p->waiting_time;  // Accumulate total waiting time for average calculation
             completed[idx] = true;
             processes_completed++;
         }
     }
 
-    calculate_waiting_average(procs, n);  // Calculate and print the average waiting time
+    // Calculate and print average waiting time after all processes complete
+    double average_waiting_time = (processes_completed > 0) ? total_waiting_time / processes_completed : 0.0;
+    printf("AVG Waiting Time: %.2f\n", average_waiting_time);
 }
+
 
 
 
