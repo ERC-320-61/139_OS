@@ -192,7 +192,16 @@ void round_robin(Process procs[], int n, int quantum) {
 
         printf("%4d\t%4d\n", current_time, proc_ptr->process_number); // Print the time and process number
 
-        int exec_time = (proc_ptr->remaining_time < quantum) ? proc_ptr->remaining_time : quantum; // Calculate execution time
+        int exec_time;                                                // Variable to hold the execution time for the current process
+
+        // Determine execution time based on remaining time and quantum
+        if (proc_ptr->remaining_time < quantum) {
+            exec_time = proc_ptr->remaining_time;                     // If remaining time is less than quantum, use remaining time
+        } else {
+            exec_time = quantum;                                      // If remaining time is more than or equal to quantum, use quantum
+        }
+
+
         current_time += exec_time;                                    // Advance current time by execution time
         proc_ptr->remaining_time -= exec_time;                        // Reduce remaining time of the process
         proc_ptr->last_execution_time = current_time;                 // Update last execution time
