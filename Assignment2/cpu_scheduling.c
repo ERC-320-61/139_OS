@@ -159,6 +159,9 @@ void round_robin(Process procs[], int n, int quantum) {
     double total_waiting_time = 0.0;
     int completed = 0;
 
+    printf("\n-RR- Quantum Slice:%d\n", quantum);  // Print quantum value at the beginning
+    printf(" Time   Process\n");
+    printf("-------------------\n");
     while (completed < n) {
         // Enqueue newly arrived processes
         for (int i = 0; i < n; i++) {
@@ -182,6 +185,7 @@ void round_robin(Process procs[], int n, int quantum) {
 
         // Determine execution time for this quantum
         int exec_time = (proc_ptr->remaining_time < quantum) ? proc_ptr->remaining_time : quantum;
+        printf("%4d\t%4d\n", current_time, proc_ptr->process_number); // Print time and process number at the start of its quantum
         proc_ptr->remaining_time -= exec_time;
         current_time += exec_time;
 
@@ -196,16 +200,9 @@ void round_robin(Process procs[], int n, int quantum) {
         }
     }
 
-    // Print results directly
-    printf("Processes completion and waiting times:\n");
-    printf("Process\tFinish Time\tWaiting Time\n");
-    for (int i = 0; i < n; i++) {
-        printf("%d\t%d\t\t%d\n", procs[i].process_number, procs[i].finish_time, procs[i].waiting_time);
-    }
-
     // Calculate and print the average waiting time
     double average_waiting_time = total_waiting_time / n;
-    printf("Average Waiting Time: %.2f\n", average_waiting_time);
+    printf("AVG Waiting Time: %.2f\n", average_waiting_time);
 }
 
 
