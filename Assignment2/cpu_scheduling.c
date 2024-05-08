@@ -54,57 +54,41 @@ void pr_noPREMP(Process procs[], int n);
 void round_robin(Process procs[], int n, int quantum);
 
 /****** MAIN ******/
-int main()
-{
+int main() {
     Process procs[MAX_PROCESSES];
     int n, quantum = 0;
     char scheduling_algo[25];
     char filename[50];
-    FILE *file_ptr = NULL;
+    FILE *file_ptr = NULL, *output_ptr = NULL;
 
-    // Try to open a specific input file
     snprintf(filename, sizeof(filename), "input.txt");
     file_ptr = fopen(filename, "r");
-    if (!file_ptr)
-    {
+    if (!file_ptr) {
         perror("Error opening input file");
         return EXIT_FAILURE;
     }
 
-    // Read scheduling algorithm type and possibly quantum
-    if (fscanf(file_ptr, "%s", scheduling_algo) != 1)
-    {
+    if (fscanf(file_ptr, "%s", scheduling_algo) != 1) {
         fprintf(stderr, "Failed to read scheduling algorithm\n");
         fclose(file_ptr);
         return EXIT_FAILURE;
     }
-    if (strcmp(scheduling_algo, "RR") == 0)
-    {
-        if (fscanf(file_ptr, "%d", &quantum) != 1)
-        {
+    if (strcmp(scheduling_algo, "RR") == 0) {
+        if (fscanf(file_ptr, "%d", &quantum) != 1) {
             fprintf(stderr, "Failed to read quantum for RR\n");
             fclose(file_ptr);
             return EXIT_FAILURE;
         }
     }
 
-    // Read number of processes
-    if (fscanf(file_ptr, "%d", &n) != 1)
-    {
+    if (fscanf(file_ptr, "%d", &n) != 1) {
         fprintf(stderr, "Failed to read number of processes\n");
         fclose(file_ptr);
         return EXIT_FAILURE;
     }
 
-    // Read process data
-    for (int i = 0; i < n; i++)
-    {
-        if (fscanf(file_ptr, "%d %d %d %d",
-                   &procs[i].process_number,
-                   &procs[i].arrival_time,
-                   &procs[i].cpu_burst_time,
-                   &procs[i].priority) != 4)
-        {
+    for (int i = 0; i < n; i++) {
+        if (fscanf(file_ptr, "%d %d %d %d", &procs[i].process_number, &procs[i].arrival_time, &procs[i].cpu_burst_time, &procs[i].priority) != 4) {
             fprintf(stderr, "Failed to read data for process %d\n", i);
             fclose(file_ptr);
             return EXIT_FAILURE;
@@ -115,30 +99,28 @@ int main()
     }
     fclose(file_ptr);
 
-    // Execute scheduling based on the algorithm specified
-    if (strcmp(scheduling_algo, "RR") == 0)
-    {
-        round_robin(procs, n, quantum);
-    }
-    else if (strcmp(scheduling_algo, "SJF") == 0)
-    {
-        sjf(procs, n);
-    }
-    else if (strcmp(scheduling_algo, "PR_noPREMP") == 0)
-    {
-        pr_noPREMP(procs, n);
-    }
-    else if (strcmp(scheduling_algo, "PR_withPREMP") == 0)
-    {
-        PR_PREMP(procs, n);
-    }
-    else
-    {
-        fprintf(stderr, "Invalid scheduling algorithm specified.\n");
+    output_ptr = freopen("output.txt", "w", stdout); // Redirect stdout to output.txt
+    if (!output_ptr) {
+        perror("Error opening output file");
         return EXIT_FAILURE;
     }
 
-    return 0; // Indicate successful execution
+    if (strcmp(scheduling_algo, "RR") == 0) {
+        round_robin(procs, n, quantum);
+    } else if (strcmp(scheduling_algo, "SJF") == 0) {
+        sjf(procs, n);
+    } else if (strcmp(scheduling_algo, "PR_noPREMP") == 0) {
+        pr_noPREMP(procs, n);
+    } else if (strcmp(scheduling_algo, "PR_withPREMP") == 0) {
+        PR_PREMP(procs, n);
+    } else {
+        fprintf(stderr, "Invalid scheduling algorithm specified.\n");
+        fclose(output_ptr); // Close the file if scheduling algorithm is invalid
+        return EXIT_FAILURE;
+    }
+
+    fclose(output_ptr); // Close the output file
+    return 0;
 }
 
 /****** ROUND ROBIN SCHEDULING ******/
