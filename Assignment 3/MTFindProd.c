@@ -91,7 +91,7 @@ int main(int argc, char *argv[]){
 	SetTime();
 
 
-
+	
 	/*************** START OF THREAD INITIALIZATION AND SYNCHRONIZATION ***************/
 
 	/*
@@ -103,6 +103,7 @@ int main(int argc, char *argv[]){
 			* This approach ensures that shared variables are properly managed across multiple threads.
 			* Thread attributes are safely destroyed after all threads complete, to clean up allocated resources.
 	*/
+	printf("\nSTART OF PARENT WAITING AND THREAD MANAGEMENT: \n");
 
 	// Initialize and create threads
     for (i = 0; i < gThreadCount; i++) {
@@ -127,114 +128,154 @@ int main(int argc, char *argv[]){
 	prod = ComputeTotalProduct();
 	printf("Threaded multiplication with parent waiting for all children completed in %ld ms. Product = %d\n", GetTime(), prod);
 
-	// Exit the program
-    exit(0);
 
 	// Multi-threaded with busy waiting (parent continually checking on child threads without using semaphores)
 	InitSharedVars();
 	SetTime();
 
-
+	
 	/*************** START OF BUSY WAITING AND THREAD MANAGEMENT ***************/
-
 	/*
 		Busy Waiting and Thread Management:
-			* Initialize and manage threads without using semaphores for synchronization.
-			* Create threads to execute the ThFindProd function, ensuring each has the required parameters.
-			* Continuously monitor all threads to check their completion status and detect any zeros in their output.
-			* If a zero is detected, exit the monitoring loop immediately to halt further processing.
-			* Cancel and join all threads ensuring no resources are left hanging, providing a clean exit and memory management.
+		* Initialize and manage threads without using semaphores for synchronization.
+		* Create threads to execute the ThFindProd function, ensuring each has the required parameters.
+		* Continuously monitor all threads to check their completion status and detect any zeros in their output.
+		* If a zero is detected, exit the monitoring loop immediately to halt further processing.
+		* Cancel and join all threads ensuring no resources are left hanging, providing a clean exit and memory management.
 	*/
+	printf("\nSTART OF BUSY WAITING AND THREAD MANAGEMENT: \n");
 
-	volatile bool all_done = false;										// Initialize and launch each thread with its specific data segment for processing
-	bool found_zero = false;
+	volatile bool all_done = false;                // Flag to check if all threads have completed
+	bool found_zero = false;                       // Flag to indicate if zero product is found
 
-	for (i = 0; i < gThreadCount; i++) {								// Creating threads and assigning their tasks
-		pthread_create(&tid[i], NULL, ThFindProd, &params[i]);  		// Initialize each thread with ThFindProd function
+	// Start all threads
+	for (i = 0; i < gThreadCount; i++) {
+		if (pthread_create(&tid[i], NULL, ThFindProd, &params[i])) {
+			fprintf(stderr, "Error creating thread %d\n", i);
+			exit(1);
+		}
+		// FOR DEBUGGING printf("Thread %d started\n", i);
 	}
 
-	while (!all_done) {													// Busy waiting loop for monitoring threads
-		all_done = true;  												// Assume all threads are completed unless found otherwise
+	// Busy waiting loop to monitor threads
+	do {
+		all_done = true; // Assume all threads are completed unless found otherwise
 		for (i = 0; i < gThreadCount; i++) {
 			if (!gThreadDone[i]) {
-				all_done = false;  										// Mark not all done if any thread is still processing
+				all_done = false;  // One or more threads are still processing
+				// FOR DEBUGGING printf("Checking thread %d: still active\n", i);
 				if (gThreadProd[i] == 0) {
-					found_zero = true;  								// Check for zero in product results
-					break;  											// Break the loop if zero is found
+					found_zero = true;  // Zero product found
+					// FOR DEBUGGING printf("Zero product detected by thread %d\n", i);
+					break;  // Break the inner loop if zero is found
 				}
 			}
 		}
-		if (found_zero) break;  										// Exit the outer loop if zero is found
-	}
+		// If zero found, exit from the monitoring loop
+		if (found_zero) break;
+	} while (!all_done);
 
-	if (found_zero) {													// Cancel and join all threads if zero is detected or all are done
+	// Cancel and join all threads if zero is detected or all are done
+	if (found_zero || all_done) {
 		for (i = 0; i < gThreadCount; i++) {
-			pthread_cancel(tid[i]);  									// Cancel each thread
+			pthread_cancel(tid[i]);  // Send cancellation request to each thread
+			// FOR DEBUGGING printf("Cancelling thread %d\n", i);
+		}
+		for (i = 0; i < gThreadCount; i++) {
+			pthread_join(tid[i], NULL);  // Wait for each thread to terminate
+			// FOR DEBUGGING printf("Thread %d joined\n", i);
 		}
 	}
-	for (i = 0; i < gThreadCount; i++) {
-		pthread_join(tid[i], NULL);  									// Join each thread to ensure clean closure
+
+	// Calculate the total product if no zero was found
+	if (!found_zero) {
+		int totalProduct = ComputeTotalProduct();
+		// FOR DEBUGGING printf("Total product computed: %d\n", totalProduct);
 	}
+
+	printf("Threaded multiplication with busy waiting completed in %ld ms. Product = %d\n", GetTime(), prod);
 /*************** END OF BUSY WAITING AND THREAD MANAGEMENT ***************/
 
 
 
+
     prod = ComputeTotalProduct();
-	printf("Threaded multiplication with parent continually checking on children completed in %ld ms. Product = %d\n", GetTime(), prod);
+
 	InitSharedVars();
     // Initialize my SEMAPHORES BELOW
 
 	SetTime();
 
-	/*************** START OF SEMAPHORE SYNCHRONIZATION AND THREAD MANAGEMENT ***************/
-	/*
-		Semaphore Synchronization and Thread Management:
-			* This section initializes semaphores and shared variables critical for managing multi-threaded operations.
-			* It employs the 'completed' semaphore to manage the synchronization of thread completion, ensuring all threads signal when they are done.
-			* The function monitors for any threads that calculate a zero product, enabling early termination of the computation across all threads.
-			* If any thread finds a zero, it triggers a cancellation of all other threads to halt further processing and save resources.
-			* All threads are joined post-cancellation or completion to ensure that all system resources are reclaimed and no threads are left hanging.
-			* Finally, semaphores are destroyed to clean up the resources allocated for thread management, ensuring no semaphore leaks.
-	*/
+/*************** START OF SEMAPHORE SYNCHRONIZATION AND THREAD MANAGEMENT ***************/
+/*
+    Semaphore Synchronization and Thread Management:
+        * Initialize semaphores and shared variables critical for managing multi-threaded operations.
+        * Employ the 'completed' semaphore to synchronize thread completion, ensuring all threads signal when they finish.
+        * Monitor threads that calculate a zero product to enable early termination of all threads.
+        * If a zero is detected, cancel all other threads to halt further processing and save resources.
+        * Join all threads post-cancellation or completion to reclaim all system resources.
+        * Finally, clean up the semaphore resources to prevent leaks.
+*/
 
-																// Initialize semaphores and shared variables HERE
-	sem_init(&completed, 0, 0);  								// Semaphore to signal completion of threads
-	sem_init(&mutex, 0, 1);      								// Binary semaphore for exclusive access to shared variable
+printf("\nSTART OF SEMAPHORE SYNCHRONIZATION AND THREAD MANAGEMENT: \n");
 
-	for (int i = 0; i < gThreadCount; i++) { 					// Wait for each thread to signal completion via the 'completed' semaphore.
+InitSharedVars();  // Initialize shared variables
+SetTime();         // Start timing before threads start
 
-		sem_wait(&completed);
-	}
+// Initialize semaphores
+sem_init(&completed, 0, 0);
+sem_init(&mutex, 0, 1);
 
-	bool zero_found = false;
-	for (int i = 0; i < gThreadCount; i++) { 					// Check each thread's product for zero to potentially halt further processing.
-		if (gThreadProd[i] == 0) {
-			zero_found = true;  								// If zero is found, set the flag to true
-			break;
-		}
-	}
+// Start threads and print their range information
+for (int i = 0; i < gThreadCount; i++) {
+    printf("Thread %d started with start: %d and end: %d\n", i, params[i][1], params[i][2]);
+    pthread_create(&tid[i], NULL, ThFindProdWithSemaphore, &params[i]);
+}
 
-	if (zero_found) {											// If a zero is detected, cancel all threads to prevent further computations
-		for (int i = 0; i < gThreadCount; i++) {
-			pthread_cancel(tid[i]);
-		}
-	}
+int completed_threads = 0;
+bool zero_found = false;
 
-	for (int i = 0; i < gThreadCount; i++) { 					// Join each thread to ensure all are properly terminated and resources are freed.
-		pthread_join(tid[i], NULL);
-	}
+while (completed_threads < gThreadCount && !zero_found) {
+    // Wait for any thread to signal completion
+    sem_wait(&completed);
 
-	sem_destroy(&completed);									// Clean up semaphores after use
-	sem_destroy(&mutex);
+    // Check if any thread found a zero product
+    for (int i = 0; i < gThreadCount; i++) {
+        if (gThreadProd[i] == 0) {
+            zero_found = true;
+            break;
+        }
+    }
+
+    if (zero_found) {
+        // If zero found, cancel all threads
+        for (int i = 0; i < gThreadCount; i++) {
+            pthread_cancel(tid[i]);
+        }
+    }
+
+    completed_threads++;
+}
+
+// Ensure all threads are joined
+for (int i = 0; i < gThreadCount; i++) {
+    pthread_join(tid[i], NULL);
+}
+
+// Clean up semaphore resources
+sem_destroy(&completed);
+sem_destroy(&mutex);
+
+// Calculate and display the final product
+prod = ComputeTotalProduct();
+
+printf("Threaded multiplication with parent waiting on a semaphore completed in %ld ms. Min = %d\n", GetTime(), prod);
+
 /*************** END OF SEMAPHORE SYNCHRONIZATION AND THREAD MANAGEMENT ***************/
 
 
-
-
-    prod = ComputeTotalProduct();
-	printf("Threaded multiplication with parent waiting on a semaphore completed in %ld ms. Min = %d\n", GetTime(), prod);
-
-	
+	// Exit the program
+    exit(0);
 }
 
 
@@ -283,13 +324,17 @@ void *ThFindProd(void *param) {
 
     printf("Thread %d started with start: %d and end: %d\n", threadNum, start, end);
 
-    // Simulate some work
+    int localProd = 1;  // Assuming computation here
     for (int i = start; i <= end; i++) {
-        // Example operation
+        localProd = (localProd * gData[i]) % NUM_LIMIT;
     }
+    gThreadProd[threadNum] = localProd;
+    gThreadDone[threadNum] = true;  // Set this thread as done
+    // FOR DEBUGGING printf("Thread %d finished with product %d\n", threadNum, localProd);
 
     return NULL;
 }
+
 
 /*************** START THE THREAD FIND PRODUCT WITH SEMAPHORE ***************/
 /*
